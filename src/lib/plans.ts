@@ -1,0 +1,58 @@
+export const PLANS = {
+  '50-30-20': {
+    id: '50-30-20' as const,
+    name: '50/30/20 Rule',
+    description: 'The most widely recommended framework. Splits income into needs, wants, and savings.',
+    buckets: { Needs: 50, Wants: 30, Savings: 20 },
+    categories: [
+      { name: 'Housing',        color: '#6366f1', keywords: ['rent','mortgage','hoa','property'],                                                                    pct: 30, bucket: 'Needs'   },
+      { name: 'Groceries',      color: '#22c55e', keywords: ['grocery','groceries','whole foods','trader joe','kroger','safeway','walmart','costco','aldi','publix'], pct: 10, bucket: 'Needs'   },
+      { name: 'Transportation', color: '#f59e0b', keywords: ['uber','lyft','gas','fuel','parking','toll','metro','transit','shell','chevron','exxon'],                pct: 5,  bucket: 'Needs'   },
+      { name: 'Healthcare',     color: '#ef4444', keywords: ['pharmacy','cvs','walgreens','doctor','hospital','dental','vision','medical','health'],                  pct: 3,  bucket: 'Needs'   },
+      { name: 'Utilities',      color: '#14b8a6', keywords: ['electric','water','internet','comcast','att','verizon','spectrum','pge','con ed'],                      pct: 2,  bucket: 'Needs'   },
+      { name: 'Dining',         color: '#f97316', keywords: ['restaurant','doordash','ubereats','grubhub','mcdonald','starbucks','chipotle','subway','pizza','cafe'],  pct: 10, bucket: 'Wants'   },
+      { name: 'Entertainment',  color: '#a855f7', keywords: ['movie','theater','concert','ticketmaster','steam','playstation','xbox','nintendo','amc'],               pct: 5,  bucket: 'Wants'   },
+      { name: 'Shopping',       color: '#ec4899', keywords: ['amazon','ebay','etsy','nordstrom','macy','gap','zara','nike','best buy'],                               pct: 8,  bucket: 'Wants'   },
+      { name: 'Subscriptions',  color: '#8b5cf6', keywords: ['netflix','hulu','disney','spotify','apple','amazon prime','hbo','youtube','microsoft','adobe'],         pct: 4,  bucket: 'Wants'   },
+      { name: 'Miscellaneous',  color: '#94a3b8', keywords: ['misc','miscellaneous','other'],                                                                         pct: 3,  bucket: 'Wants'   },
+      { name: 'Savings',        color: '#10b981', keywords: ['savings','transfer','investment'],                                                                      pct: 20, bucket: 'Savings'  },
+    ],
+  },
+  '70-20-10': {
+    id: '70-20-10' as const,
+    name: '70/20/10 Plan',
+    description: 'Best for aggressively paying off debt. 70% living expenses, 20% savings, 10% debt repayment.',
+    buckets: { 'Living': 70, 'Savings': 20, 'Debt': 10 },
+    categories: [
+      { name: 'Housing',        color: '#6366f1', keywords: ['rent','mortgage','hoa','property'],                                                                    pct: 35, bucket: 'Living'  },
+      { name: 'Groceries',      color: '#22c55e', keywords: ['grocery','groceries','whole foods','trader joe','kroger','safeway','walmart','costco','aldi','publix'], pct: 12, bucket: 'Living'  },
+      { name: 'Transportation', color: '#f59e0b', keywords: ['uber','lyft','gas','fuel','parking','toll','metro','transit','shell','chevron','exxon'],                pct: 8,  bucket: 'Living'  },
+      { name: 'Healthcare',     color: '#ef4444', keywords: ['pharmacy','cvs','walgreens','doctor','hospital','dental','vision','medical','health'],                  pct: 4,  bucket: 'Living'  },
+      { name: 'Utilities',      color: '#14b8a6', keywords: ['electric','water','internet','comcast','att','verizon','spectrum'],                                     pct: 3,  bucket: 'Living'  },
+      { name: 'Dining',         color: '#f97316', keywords: ['restaurant','doordash','ubereats','grubhub','mcdonald','starbucks','chipotle','subway','pizza','cafe'],  pct: 5,  bucket: 'Living'  },
+      { name: 'Subscriptions',  color: '#8b5cf6', keywords: ['netflix','hulu','disney','spotify','apple','amazon prime','hbo','youtube','microsoft'],                 pct: 3,  bucket: 'Living'  },
+      { name: 'Savings',        color: '#10b981', keywords: ['savings','transfer','investment'],                                                                      pct: 20, bucket: 'Savings' },
+      { name: 'Debt Payment',   color: '#f43f5e', keywords: ['loan','debt','credit card','payment','payoff'],                                                         pct: 10, bucket: 'Debt'    },
+    ],
+  },
+  '60-30-10': {
+    id: '60-30-10' as const,
+    name: '60/30/10 Plan',
+    description: 'Ideal for high cost-of-living areas. 60% needs, 30% wants, 10% short-term savings.',
+    buckets: { Needs: 60, Wants: 30, Savings: 10 },
+    categories: [
+      { name: 'Housing',        color: '#6366f1', keywords: ['rent','mortgage','hoa','property'],                                                                    pct: 35, bucket: 'Needs'   },
+      { name: 'Groceries',      color: '#22c55e', keywords: ['grocery','groceries','whole foods','trader joe','kroger','safeway','walmart','costco','aldi','publix'], pct: 10, bucket: 'Needs'   },
+      { name: 'Transportation', color: '#f59e0b', keywords: ['uber','lyft','gas','fuel','parking','toll','metro','transit','shell','chevron','exxon'],                pct: 7,  bucket: 'Needs'   },
+      { name: 'Healthcare',     color: '#ef4444', keywords: ['pharmacy','cvs','walgreens','doctor','hospital','dental','vision','medical','health'],                  pct: 4,  bucket: 'Needs'   },
+      { name: 'Utilities',      color: '#14b8a6', keywords: ['electric','water','internet','comcast','att','verizon','spectrum'],                                     pct: 4,  bucket: 'Needs'   },
+      { name: 'Dining',         color: '#f97316', keywords: ['restaurant','doordash','ubereats','grubhub','mcdonald','starbucks','chipotle','subway','pizza','cafe'],  pct: 10, bucket: 'Wants'   },
+      { name: 'Entertainment',  color: '#a855f7', keywords: ['movie','theater','concert','ticketmaster','steam','playstation','xbox','nintendo','amc'],               pct: 5,  bucket: 'Wants'   },
+      { name: 'Shopping',       color: '#ec4899', keywords: ['amazon','ebay','etsy','nordstrom','macy','gap','zara','nike','best buy'],                               pct: 10, bucket: 'Wants'   },
+      { name: 'Subscriptions',  color: '#8b5cf6', keywords: ['netflix','hulu','disney','spotify','apple','amazon prime','hbo','youtube','microsoft'],                 pct: 5,  bucket: 'Wants'   },
+      { name: 'Savings',        color: '#10b981', keywords: ['savings','transfer','investment'],                                                                      pct: 10, bucket: 'Savings'  },
+    ],
+  },
+} as const
+
+export type PlanId = keyof typeof PLANS
