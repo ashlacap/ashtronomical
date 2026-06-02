@@ -31,11 +31,18 @@ export default async function AccountsPage() {
     db.debt.aggregate({ where: { userId: session.userId }, _sum: { balance: true } }),
   ])
 
-  const bankBalance = bankAccounts
-    .flatMap((b: BankAccountWithAccounts) => b.plaidAccounts)
+  const allPlaidAccounts = bankAccounts.flatMap((b: BankAccountWithAccounts) => b.plaidAccounts)
+  // Only depository accounts (checking/savings) are assets.
+  const bankBalance = allPlaidAccounts
+    .filter((a: PlaidAccount) => a.type === 'depository')
+    .reduce((sum: number, a: PlaidAccount) => sum + (a.currentBalance ?? 0), 0)
+  // Credit cards and loans are debt, not assets.
+  const plaidDebt = allPlaidAccounts
+    .filter((a: PlaidAccount) => a.type === 'credit' || a.type === 'loan')
     .reduce((sum: number, a: PlaidAccount) => sum + (a.currentBalance ?? 0), 0)
   const assetsTotal = manualAssets.reduce((s, a) => s + a.value, 0)
-  const totalDebt = debtAgg._sum.balance ?? 0
+  const manualDebt = debtAgg._sum.balance ?? 0
+  const totalDebt = manualDebt + plaidDebt
   const netWorth = bankBalance + assetsTotal - totalDebt
 
   return (
@@ -109,13 +116,25 @@ export default async function AccountsPage() {
                         </p>
                       </div>
                       <div className="text-right">
-                        {account.currentBalance != null && (
-                          <p className="text-sm font-semibold">{formatCurrency(account.currentBalance)}</p>
-                        )}
-                        {account.availableBalance != null && account.availableBalance !== account.currentBalance && (
-                          <p className="text-xs text-muted-foreground">{formatCurrency(account.availableBalance)} available</p>
-                        )}
-                        <Badge variant="secondary" className="text-xs mt-0.5">{account.subtype ?? account.type}</Badge>
+                        {(() => {
+                          const isDebt = account.type === 'credit' || account.type === 'loan'
+                          return (
+                            <>
+                              {account.currentBalance != null && (
+                                <p className={`text-sm font-semibold ${isDebt ? 'text-red-500' : ''}`}>
+                                  {isDebt ? '−' : ''}{formatCurrency(account.currentBalance)}
+                                  {isDebt && <span className="text-xs font-normal text-muted-foreground ml-1">owed</span>}
+                                </p>
+                              )}
+                              {account.availableBalance != null && account.availableBalance !== account.currentBalance && (
+                                <p className="text-xs text-muted-foreground">
+                                  {formatCurrency(account.availableBalance)} {isDebt ? 'available credit' : 'available'}
+                                </p>
+                              )}
+                              <Badge variant="secondary" className="text-xs mt-0.5">{account.subtype ?? account.type}</Badge>
+                            </>
+                          )
+                        })()}
                       </div>
                     </div>
                     {i < bank.plaidAccounts.length - 1 && <Separator />}

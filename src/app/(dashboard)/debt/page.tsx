@@ -1,13 +1,14 @@
 import { requireAuth } from '@/lib/session'
 import { db } from '@/lib/db'
 import { DebtClient } from '@/components/DebtClient'
+import { getPlaidDebtAccounts } from '@/lib/finance'
 
 export default async function DebtPage() {
   const session = await requireAuth()
-  const debts = await db.debt.findMany({
-    where: { userId: session.userId },
-    orderBy: { interestRate: 'desc' },
-  })
+  const [debts, connectedDebts] = await Promise.all([
+    db.debt.findMany({ where: { userId: session.userId }, orderBy: { interestRate: 'desc' } }),
+    getPlaidDebtAccounts(session.userId),
+  ])
 
   return (
     <DebtClient
@@ -19,6 +20,7 @@ export default async function DebtPage() {
         minimumPayment: d.minimumPayment,
         type: d.type,
       }))}
+      connectedDebts={connectedDebts}
     />
   )
 }

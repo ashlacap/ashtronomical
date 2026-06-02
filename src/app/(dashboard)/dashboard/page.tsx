@@ -18,6 +18,7 @@ import { detectRecurringBills } from '@/lib/recurring'
 import { getUserSettings } from '@/lib/user-settings'
 import { formatCurrency } from '@/lib/currency'
 import { postDueRecurring } from '@/app/actions/recurring'
+import { getPlaidDebtAccounts } from '@/lib/finance'
 import type { Category, Transaction } from '@/generated/prisma/client'
 
 type TxnWithCat = Transaction & { category: Category | null }
@@ -55,7 +56,7 @@ export default async function DashboardPage({
     return { value: format(d, 'yyyy-MM'), label: format(d, 'MMMM yyyy') }
   })
 
-  const [user, budget, categories, transactions, pendingTxns, allRecentTxns, bankAccounts, goals, prevMonthTxns, savedAgg, debtAgg] =
+  const [user, budget, categories, transactions, pendingTxns, allRecentTxns, bankAccounts, goals, prevMonthTxns, savedAgg, debtAgg, connectedDebts] =
     await Promise.all([
       db.user.findUnique({ where: { id: session.userId }, select: { name: true } }),
       db.budget.findFirst({
@@ -83,7 +84,10 @@ export default async function DashboardPage({
       }),
       db.savingsGoal.aggregate({ where: { userId: session.userId }, _sum: { currentAmount: true } }),
       db.debt.aggregate({ where: { userId: session.userId }, _sum: { balance: true } }),
+      getPlaidDebtAccounts(session.userId),
     ])
+
+  const totalDebt = (debtAgg._sum.balance ?? 0) + connectedDebts.reduce((s, d) => s + d.balance, 0)
 
   // Rollover
   const prevMonthSpendByCat = new Map<string, number>()
@@ -291,7 +295,7 @@ export default async function DashboardPage({
           <DarkStatCard label="Monthly Income" value={fmt(income)} sub="set in Fuel Allocation" Icon={Zap} />
           <DarkStatCard label="Total Spent" value={fmt(totalSpent)} sub={`of ${fmt(totalBudgeted)} budgeted`} Icon={Flame} />
           <DarkStatCard label="Remaining" value={fmt(remaining)} sub={remaining < 0 ? 'over budget' : 'left this period'} Icon={Vault} />
-          <DarkStatCard label="Total Debt" value={fmt(debtAgg._sum.balance ?? 0)} sub={(debtAgg._sum.balance ?? 0) > 0 ? 'track on Debt page' : 'debt-free'} Icon={Orbit} />
+          <DarkStatCard label="Total Debt" value={fmt(totalDebt)} sub={totalDebt > 0 ? 'track on Debt page' : 'debt-free'} Icon={Orbit} />
         </div>
 
         <Card>
