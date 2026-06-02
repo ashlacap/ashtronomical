@@ -24,11 +24,24 @@ const ICON_COLORS = {
   'goal-behind': 'text-orange-500',
 }
 
+const SEEN_KEY = 'seen_notification_ids'
+
+function readSeen(): Set<string> {
+  if (typeof window === 'undefined') return new Set()
+  try {
+    return new Set(JSON.parse(window.localStorage.getItem(SEEN_KEY) ?? '[]'))
+  } catch {
+    return new Set()
+  }
+}
+
 export function NotificationBell() {
   const [notifications, setNotifications] = useState<AppNotification[]>([])
   const [loaded, setLoaded] = useState(false)
+  const [seenIds, setSeenIds] = useState<Set<string>>(new Set())
 
   useEffect(() => {
+    setSeenIds(readSeen())
     getNotifications().then((n) => {
       setNotifications(n)
       setLoaded(true)
@@ -36,16 +49,32 @@ export function NotificationBell() {
   }, [])
 
   const count = notifications.length
+  // Badge only counts notifications the user hasn't opened the bell on yet
+  const unseenCount = notifications.filter((n) => !seenIds.has(n.id)).length
+
+  function markAllSeen() {
+    const ids = notifications.map((n) => n.id)
+    const next = new Set([...seenIds, ...ids])
+    setSeenIds(next)
+    if (typeof window !== 'undefined') {
+      // Only persist IDs that still exist so the store doesn't grow forever
+      window.localStorage.setItem(SEEN_KEY, JSON.stringify(ids))
+    }
+  }
+
+  function handleOpenChange(open: boolean) {
+    if (open && unseenCount > 0) markAllSeen()
+  }
 
   return (
-    <DropdownMenu>
+    <DropdownMenu onOpenChange={handleOpenChange}>
       <DropdownMenuTrigger
         render={
           <button className="relative h-9 w-9 rounded-full flex items-center justify-center hover:bg-accent transition-colors" aria-label="Notifications">
             <Bell className="h-4.5 w-4.5 text-muted-foreground" style={{ width: 18, height: 18 }} />
-            {count > 0 && (
+            {unseenCount > 0 && (
               <span className="absolute top-1 right-1 min-w-4 h-4 px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center">
-                {count > 9 ? '9+' : count}
+                {unseenCount > 9 ? '9+' : unseenCount}
               </span>
             )}
           </button>
