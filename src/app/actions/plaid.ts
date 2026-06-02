@@ -11,12 +11,18 @@ import { encryptSecret, decryptSecret } from '@/lib/crypto'
 export async function createLinkToken(): Promise<string> {
   const session = await requireAuth()
 
+  // Required for OAuth banks (Bank of America, USAA, Chase, etc.). Must exactly
+  // match a redirect URI registered in the Plaid dashboard. Omitted when unset
+  // (sandbox / non-OAuth banks work without it).
+  const redirectUri = process.env.PLAID_REDIRECT_URI
+
   const response = await plaidClient.linkTokenCreate({
     user: { client_user_id: session.userId },
     client_name: 'Ashtronomical',
     products: [Products.Transactions],
     language: 'en',
     country_codes: [CountryCode.Us],
+    ...(redirectUri ? { redirect_uri: redirectUri } : {}),
   })
 
   return response.data.link_token

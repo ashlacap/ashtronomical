@@ -7,15 +7,35 @@ import { Building2, Loader2 } from 'lucide-react'
 import { createLinkToken, exchangeToken } from '@/app/actions/plaid'
 import { Button } from '@/components/ui/button'
 
+const TOKEN_KEY = 'plaid_link_token'
+
 export function PlaidLinkButton() {
   const [linkToken, setLinkToken] = useState<string | null>(null)
-  const [loading, setLoading] = useState(false)
   const [exchanging, setExchanging] = useState(false)
+  const [isOAuthReturn, setIsOAuthReturn] = useState(false)
 
   useEffect(() => {
-    createLinkToken().then(setLinkToken).catch(() => {
-      toast.error('Could not initialize bank connection.')
-    })
+    if (typeof window === 'undefined') return
+
+    // If the bank redirected back here mid-OAuth, reuse the SAME token we stored
+    // before leaving — Plaid requires it to resume the flow.
+    const isOAuth = window.location.search.includes('oauth_state_id=')
+    if (isOAuth) {
+      const stored = window.localStorage.getItem(TOKEN_KEY)
+      if (stored) {
+        setLinkToken(stored)
+        setIsOAuthReturn(true)
+        return
+      }
+    }
+
+    // Normal flow: mint a fresh token and stash it for a possible OAuth redirect.
+    createLinkToken()
+      .then((t) => {
+        setLinkToken(t)
+        window.localStorage.setItem(TOKEN_KEY, t)
+      })
+      .catch(() => toast.error('Could not initialize bank connection.'))
   }, [])
 
   const onSuccess = useCallback(
@@ -23,8 +43,13 @@ export function PlaidLinkButton() {
       setExchanging(true)
       const result = await exchangeToken(publicToken, metadata.institution?.name ?? null)
       setExchanging(false)
+      window.localStorage.removeItem(TOKEN_KEY)
       if (result.success) {
         toast.success('Bank account connected! Transactions are syncing.')
+        // Strip the oauth_state_id from the URL so a refresh doesn't re-trigger.
+        if (window.location.search.includes('oauth_state_id=')) {
+          window.history.replaceState({}, '', window.location.pathname)
+        }
       } else {
         toast.error(result.error ?? 'Failed to connect account.')
       }
@@ -32,18 +57,23 @@ export function PlaidLinkButton() {
     [],
   )
 
-  const { open, ready } = usePlaidLink({ token: linkToken, onSuccess })
+  const { open, ready } = usePlaidLink({
+    token: linkToken,
+    onSuccess,
+    ...(isOAuthReturn && typeof window !== 'undefined'
+      ? { receivedRedirectUri: window.location.href }
+      : {}),
+  })
 
-  const handleClick = () => {
-    setLoading(true)
-    open()
-    setTimeout(() => setLoading(false), 1000)
-  }
+  // Automatically re-open Link to finish the OAuth handoff once it's ready.
+  useEffect(() => {
+    if (isOAuthReturn && ready) open()
+  }, [isOAuthReturn, ready, open])
 
-  const isLoading = loading || exchanging || !linkToken
+  const isLoading = exchanging || !linkToken
 
   return (
-    <Button onClick={handleClick} disabled={isLoading || !ready}>
+    <Button onClick={() => open()} disabled={isLoading || !ready}>
       {isLoading ? (
         <Loader2 className="h-4 w-4 mr-2 animate-spin" />
       ) : (
