@@ -18,7 +18,7 @@ import { detectRecurringBills } from '@/lib/recurring'
 import { getUserSettings } from '@/lib/user-settings'
 import { formatCurrency } from '@/lib/currency'
 import { postDueRecurring } from '@/app/actions/recurring'
-import { getPlaidDebtAccounts } from '@/lib/finance'
+import { getDebtTotals } from '@/lib/finance'
 import type { Category, Transaction } from '@/generated/prisma/client'
 
 type TxnWithCat = Transaction & { category: Category | null }
@@ -56,7 +56,7 @@ export default async function DashboardPage({
     return { value: format(d, 'yyyy-MM'), label: format(d, 'MMMM yyyy') }
   })
 
-  const [user, budget, categories, transactions, pendingTxns, allRecentTxns, bankAccounts, goals, prevMonthTxns, savedAgg, debtAgg, connectedDebts] =
+  const [user, budget, categories, transactions, pendingTxns, allRecentTxns, bankAccounts, goals, prevMonthTxns, savedAgg, debtTotals] =
     await Promise.all([
       db.user.findUnique({ where: { id: session.userId }, select: { name: true } }),
       db.budget.findFirst({
@@ -83,11 +83,10 @@ export default async function DashboardPage({
         select: { categoryId: true, amount: true },
       }),
       db.savingsGoal.aggregate({ where: { userId: session.userId }, _sum: { currentAmount: true } }),
-      db.debt.aggregate({ where: { userId: session.userId }, _sum: { balance: true } }),
-      getPlaidDebtAccounts(session.userId),
+      getDebtTotals(session.userId),
     ])
 
-  const totalDebt = (debtAgg._sum.balance ?? 0) + connectedDebts.reduce((s, d) => s + d.balance, 0)
+  const totalDebt = debtTotals.totalDebt
 
   // Rollover
   const prevMonthSpendByCat = new Map<string, number>()

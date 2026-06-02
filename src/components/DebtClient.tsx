@@ -33,7 +33,9 @@ const DEBT_TYPES = [
   { value: 'other', label: 'Other' },
 ]
 
-function DebtDialog({ open, onClose, debt }: { open: boolean; onClose: () => void; debt: Debt | null }) {
+type Prefill = { name: string; balance: number; plaidAccountId: string }
+
+function DebtDialog({ open, onClose, debt, prefill }: { open: boolean; onClose: () => void; debt: Debt | null; prefill?: Prefill | null }) {
   const isEdit = !!debt
   const boundUpdate = isEdit ? updateDebt.bind(null, debt!.id) : undefined
   const [createState, createAction, createPending] = useActionState(createDebt, undefined)
@@ -53,13 +55,19 @@ function DebtDialog({ open, onClose, debt }: { open: boolean; onClose: () => voi
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{isEdit ? 'Edit Debt' : 'Add Debt'}</DialogTitle>
+          <DialogTitle>{isEdit ? 'Edit Debt' : prefill ? `Set up ${prefill.name}` : 'Add Debt'}</DialogTitle>
         </DialogHeader>
         <form action={action} className="space-y-4">
+          {prefill && <input type="hidden" name="plaidAccountId" value={prefill.plaidAccountId} />}
+          {prefill && (
+            <p className="text-xs text-muted-foreground">
+              Add this card's APR and minimum payment to include it in your payoff timeline. Balance is from your bank.
+            </p>
+          )}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label htmlFor="debt-name">Name</Label>
-              <Input id="debt-name" name="name" placeholder="e.g. Chase Visa" defaultValue={debt?.name} required />
+              <Input id="debt-name" name="name" placeholder="e.g. Chase Visa" defaultValue={debt?.name ?? prefill?.name} required />
               {state?.errors?.name && <p className="text-xs text-destructive">{state.errors.name[0]}</p>}
             </div>
             <div className="space-y-1.5">
@@ -72,7 +80,7 @@ function DebtDialog({ open, onClose, debt }: { open: boolean; onClose: () => voi
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="debt-balance">Current balance ($)</Label>
-            <Input id="debt-balance" name="balance" type="number" min="0" step="0.01" defaultValue={debt?.balance} required />
+            <Input id="debt-balance" name="balance" type="number" min="0" step="0.01" defaultValue={debt?.balance ?? prefill?.balance} required />
             {state?.errors?.balance && <p className="text-xs text-destructive">{state.errors.balance[0]}</p>}
           </div>
           <div className="grid grid-cols-2 gap-3">
@@ -97,7 +105,7 @@ function DebtDialog({ open, onClose, debt }: { open: boolean; onClose: () => voi
   )
 }
 
-type ConnectedDebt = { id: string; name: string; mask: string | null; balance: number; type: string }
+type ConnectedDebt = { id: string; plaidAccountId: string; name: string; mask: string | null; balance: number; type: string }
 
 export function DebtClient({
   initialDebts,
@@ -109,7 +117,16 @@ export function DebtClient({
   const { fmt } = useCurrency()
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editDebt, setEditDebt] = useState<Debt | null>(null)
+  const [prefill, setPrefill] = useState<Prefill | null>(null)
   const [extra, setExtra] = useState(0)
+
+  function openAddDebt() { setEditDebt(null); setPrefill(null); setDialogOpen(true) }
+  function openEditDebt(d: Debt) { setEditDebt(d); setPrefill(null); setDialogOpen(true) }
+  function openSetupCard(acct: ConnectedDebt) {
+    setEditDebt(null)
+    setPrefill({ name: acct.name, balance: acct.balance, plaidAccountId: acct.plaidAccountId })
+    setDialogOpen(true)
+  }
 
   const connectedTotal = connectedDebts.reduce((s, d) => s + d.balance, 0)
   const totalDebt = initialDebts.reduce((s, d) => s + d.balance, 0) + connectedTotal
@@ -127,7 +144,7 @@ export function DebtClient({
           <h1 className="text-2xl font-bold tracking-tight">Debt</h1>
           <p className="text-sm text-muted-foreground">Track balances and see your payoff timeline (avalanche method)</p>
         </div>
-        <Button onClick={() => { setEditDebt(null); setDialogOpen(true) }}>
+        <Button onClick={openAddDebt}>
           <Plus className="h-4 w-4 mr-1.5" />Add debt
         </Button>
       </div>
@@ -139,7 +156,7 @@ export function DebtClient({
             <p className="text-sm text-muted-foreground max-w-xs">
               Add your debts to see a payoff timeline and how much interest you'll pay. Debt-free? Even better — nothing to add.
             </p>
-            <Button onClick={() => { setEditDebt(null); setDialogOpen(true) }} variant="outline">Add your first debt</Button>
+            <Button onClick={openAddDebt} variant="outline">Add your first debt</Button>
           </CardContent>
         </Card>
       ) : (
@@ -229,7 +246,7 @@ export function DebtClient({
                       </div>
                       <div className="flex items-center gap-3">
                         <span className="text-sm font-bold tabular-nums">{fmt(debt.balance)}</span>
-                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setEditDebt(debt); setDialogOpen(true) }}>
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEditDebt(debt)}>
                           <Pencil className="h-3.5 w-3.5" />
                         </Button>
                         <form action={deleteDebt.bind(null, debt.id)}>
@@ -254,7 +271,7 @@ export function DebtClient({
                   <CreditCard className="h-4 w-4" />Connected accounts
                 </CardTitle>
                 <CardDescription>
-                  Credit cards and loans from your linked banks. Add one as a debt above (with its APR) to include it in the payoff timeline.
+                  Credit cards and loans from your linked banks. Add an APR to include one in the payoff timeline.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-0">
@@ -267,7 +284,12 @@ export function DebtClient({
                           {acct.type}{acct.mask ? ` ••••${acct.mask}` : ''}
                         </p>
                       </div>
-                      <span className="text-sm font-bold tabular-nums text-red-500">{fmt(acct.balance)}</span>
+                      <div className="flex items-center gap-3">
+                        <span className="text-sm font-bold tabular-nums text-red-500">{fmt(acct.balance)}</span>
+                        <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => openSetupCard(acct)}>
+                          <Percent className="h-3 w-3 mr-1" />Add APR
+                        </Button>
+                      </div>
                     </div>
                     {i < connectedDebts.length - 1 && <Separator />}
                   </div>
@@ -278,7 +300,7 @@ export function DebtClient({
         </>
       )}
 
-      <DebtDialog open={dialogOpen} onClose={() => setDialogOpen(false)} debt={editDebt} />
+      <DebtDialog open={dialogOpen} onClose={() => setDialogOpen(false)} debt={editDebt} prefill={prefill} />
     </div>
   )
 }

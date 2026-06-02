@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge'
 import { Building2, Trash2 } from 'lucide-react'
 import { getUserSettings } from '@/lib/user-settings'
 import { formatCurrency as fmtCurrency } from '@/lib/currency'
+import { getDebtTotals } from '@/lib/finance'
 import { ManualAssetsCard } from '@/components/ManualAssetsCard'
 import type { BankAccount, PlaidAccount } from '@/generated/prisma/client'
 
@@ -21,14 +22,14 @@ export default async function AccountsPage() {
   const { currency } = await getUserSettings()
   const formatCurrency = (n: number) => fmtCurrency(n, currency)
 
-  const [bankAccounts, manualAssets, debtAgg] = await Promise.all([
+  const [bankAccounts, manualAssets, debtTotals] = await Promise.all([
     db.bankAccount.findMany({
       where: { userId: session.userId },
       include: { plaidAccounts: true },
       orderBy: { createdAt: 'desc' },
     }) as Promise<BankAccountWithAccounts[]>,
     db.manualAsset.findMany({ where: { userId: session.userId }, orderBy: { value: 'desc' } }),
-    db.debt.aggregate({ where: { userId: session.userId }, _sum: { balance: true } }),
+    getDebtTotals(session.userId),
   ])
 
   const allPlaidAccounts = bankAccounts.flatMap((b: BankAccountWithAccounts) => b.plaidAccounts)
@@ -36,13 +37,9 @@ export default async function AccountsPage() {
   const bankBalance = allPlaidAccounts
     .filter((a: PlaidAccount) => a.type === 'depository')
     .reduce((sum: number, a: PlaidAccount) => sum + (a.currentBalance ?? 0), 0)
-  // Credit cards and loans are debt, not assets.
-  const plaidDebt = allPlaidAccounts
-    .filter((a: PlaidAccount) => a.type === 'credit' || a.type === 'loan')
-    .reduce((sum: number, a: PlaidAccount) => sum + (a.currentBalance ?? 0), 0)
   const assetsTotal = manualAssets.reduce((s, a) => s + a.value, 0)
-  const manualDebt = debtAgg._sum.balance ?? 0
-  const totalDebt = manualDebt + plaidDebt
+  // Deduplicated debt: manual debts + connected cards not yet promoted to a debt.
+  const totalDebt = debtTotals.totalDebt
   const netWorth = bankBalance + assetsTotal - totalDebt
 
   return (

@@ -185,6 +185,7 @@ model Debt {
   interestRate   Float
   minimumPayment Float
   type           String   @default("credit")
+  plaidAccountId String?  @unique // links this debt to a connected Plaid credit/loan account
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 }

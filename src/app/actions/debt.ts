@@ -30,9 +30,13 @@ export async function createDebt(state: DebtState, formData: FormData): Promise<
   })
   if (!result.success) return { errors: result.error.flatten().fieldErrors as Record<string, string[]> }
 
-  await db.debt.create({ data: { userId: session.userId, ...result.data } })
+  // Optionally link this debt to a connected Plaid credit/loan account
+  const plaidAccountId = (formData.get('plaidAccountId') as string) || null
+
+  await db.debt.create({ data: { userId: session.userId, ...result.data, plaidAccountId } })
   revalidatePath('/debt')
   revalidatePath('/dashboard')
+  revalidatePath('/accounts')
   return { success: true }
 }
 
