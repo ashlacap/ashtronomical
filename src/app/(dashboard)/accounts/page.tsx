@@ -1,13 +1,14 @@
 import { requireAuth } from '@/lib/session'
 import { db } from '@/lib/db'
 import { format } from 'date-fns'
-import { disconnectAccount, syncAllTransactions } from '@/app/actions/plaid'
+import { disconnectAccount } from '@/app/actions/plaid'
 import { PlaidLinkButton } from '@/components/PlaidLinkButton'
+import { SyncButton } from '@/components/SyncButton'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
 import { Badge } from '@/components/ui/badge'
-import { Building2, RefreshCw, Trash2 } from 'lucide-react'
+import { Building2, Trash2 } from 'lucide-react'
 import { getUserSettings } from '@/lib/user-settings'
 import { formatCurrency as fmtCurrency } from '@/lib/currency'
 import { ManualAssetsCard } from '@/components/ManualAssetsCard'
@@ -45,14 +46,7 @@ export default async function AccountsPage() {
           <p className="text-muted-foreground text-sm">Bank accounts, assets, and your net worth.</p>
         </div>
         <div className="flex gap-2">
-          {bankAccounts.length > 0 && (
-            <form action={syncAllTransactions}>
-              <Button variant="outline" size="sm" type="submit">
-                <RefreshCw className="h-3.5 w-3.5 mr-2" />
-                Sync all
-              </Button>
-            </form>
-          )}
+          {bankAccounts.length > 0 && <SyncButton label="Sync all" />}
           <PlaidLinkButton />
         </div>
       </div>

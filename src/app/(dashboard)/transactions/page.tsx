@@ -4,9 +4,7 @@ import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns'
 import { TransactionList } from '@/components/TransactionList'
 import { RecurringManager } from '@/components/RecurringManager'
 import { ImportCsv } from '@/components/ImportCsv'
-import { syncAllTransactions } from '@/app/actions/plaid'
-import { Button } from '@/components/ui/button'
-import { RefreshCw } from 'lucide-react'
+import { SyncButton } from '@/components/SyncButton'
 
 const PAGE_SIZE = 25
 
@@ -117,12 +115,7 @@ export default async function TransactionsPage({
             }))}
             categories={categories.map((c) => ({ id: c.id, name: c.name }))}
           />
-          <form action={syncAllTransactions}>
-            <Button variant="outline" size="sm" type="submit">
-              <RefreshCw className="h-3.5 w-3.5 mr-2" />
-              Sync
-            </Button>
-          </form>
+          <SyncButton />
         </div>
       </div>
 

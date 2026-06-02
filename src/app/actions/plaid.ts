@@ -78,7 +78,7 @@ export async function exchangeToken(
   }
 }
 
-export async function syncAllTransactions(_formData?: FormData): Promise<void> {
+export async function syncAllTransactions(): Promise<{ synced: number }> {
   const session = await requireAuth()
   const accounts = await db.bankAccount.findMany({ where: { userId: session.userId } })
   let totalSynced = 0
@@ -93,6 +93,8 @@ export async function syncAllTransactions(_formData?: FormData): Promise<void> {
 
   revalidatePath('/dashboard')
   revalidatePath('/transactions')
+  revalidatePath('/accounts')
+  return { synced: totalSynced }
 }
 
 async function syncTransactionsForAccount(
