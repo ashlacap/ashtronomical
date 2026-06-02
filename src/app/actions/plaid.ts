@@ -13,7 +13,7 @@ export async function createLinkToken(): Promise<string> {
 
   const response = await plaidClient.linkTokenCreate({
     user: { client_user_id: session.userId },
-    client_name: 'Clearflow',
+    client_name: 'Ashtronomical',
     products: [Products.Transactions],
     language: 'en',
     country_codes: [CountryCode.Us],
