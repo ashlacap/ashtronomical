@@ -128,7 +128,7 @@ export function HouseholdClient({ currentUserId, household }: { currentUserId: s
                 <p className="text-xs text-muted-foreground">You'll lose access to shared event budgets.</p>
               </div>
               <form action={leaveHousehold}>
-                <Button variant="outline" size="sm" className="text-destructive hover:text-destructive">
+                <Button type="submit" variant="outline" size="sm" className="text-destructive hover:text-destructive">
                   <LogOut className="h-3.5 w-3.5 mr-1.5" />Leave
                 </Button>
               </form>

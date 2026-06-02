@@ -99,7 +99,7 @@ export default async function AccountsPage() {
                   </div>
                 </div>
                 <form action={disconnectAccount.bind(null, bank.id)}>
-                  <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive gap-1.5">
+                  <Button type="submit" variant="ghost" size="sm" className="text-destructive hover:text-destructive gap-1.5">
                     <Trash2 className="h-3.5 w-3.5" />
                     Disconnect
                   </Button>

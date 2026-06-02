@@ -76,7 +76,7 @@ export function ManualAssetsCard({ assets }: { assets: Asset[] }) {
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-semibold tabular-nums">{fmt(asset.value)}</span>
                     <form action={deleteAsset.bind(null, asset.id)}>
-                      <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive">
+                      <Button type="submit" variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive">
                         <Trash2 className="h-3.5 w-3.5" />
                       </Button>
                     </form>

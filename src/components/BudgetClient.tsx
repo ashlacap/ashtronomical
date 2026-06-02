@@ -288,7 +288,7 @@ export function BudgetClient({
                     <Pencil className="h-3.5 w-3.5" />
                   </Button>
                   <form action={deleteCategory.bind(null, cat.id)}>
-                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive">
+                    <Button type="submit" variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive">
                       <Trash2 className="h-3.5 w-3.5" />
                     </Button>
                   </form>
