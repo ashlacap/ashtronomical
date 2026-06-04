@@ -13,7 +13,7 @@ export default async function GoalsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Missions</h1>
+        <h1 className="text-2xl font-bold tracking-tight">Goals <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider ml-2 align-middle">Missions</span></h1>
         <p className="text-muted-foreground text-sm">Chart your course toward financial milestones.</p>
       </div>
       <GoalsClient

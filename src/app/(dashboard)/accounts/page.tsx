@@ -46,7 +46,7 @@ export default async function AccountsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Stations <span className="text-base font-normal text-muted-foreground ml-1">— Accounts</span></h1>
+          <h1 className="text-2xl font-bold tracking-tight">Accounts <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider ml-2 align-middle">Stations</span></h1>
           <p className="text-muted-foreground text-sm">Bank accounts, assets, and your net worth.</p>
         </div>
         <div className="flex gap-2">

@@ -243,7 +243,7 @@ export function EventsClient({
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Event Budgets</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Events <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider ml-2 align-middle">Event Budgets</span></h1>
           <p className="text-sm text-muted-foreground">Track spending for weddings, trips, and other events</p>
         </div>
         <Button onClick={() => { setEditEvent(null); setDialogOpen(true) }}>

@@ -126,7 +126,7 @@ export default async function InsightsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Star Charts <span className="text-base font-normal text-muted-foreground ml-1">— Insights</span></h1>
+        <h1 className="text-2xl font-bold tracking-tight">Insights <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider ml-2 align-middle">Star Charts</span></h1>
         <p className="text-muted-foreground text-sm">Spending trends and patterns over the last 6 months</p>
       </div>
 

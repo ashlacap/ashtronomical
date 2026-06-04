@@ -7,10 +7,11 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-dongle);
-  --font-mono: var(--font-dongle);
+  --font-sans: var(--font-manrope);
+  --font-mono: var(--font-manrope);
   --font-heading: var(--font-manrope);
   --font-subheading: var(--font-poppins);
+  --font-display: var(--font-dongle);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -129,36 +130,43 @@
     @apply border-border outline-ring/50;
   }
 
-  /* Scale root so all rem-based Tailwind sizes grow proportionally */
+  /* Standard root size — Manrope is a wider face than the old display font */
   html {
-    font-size: 19px;
-    font-family: var(--font-dongle), sans-serif;
+    font-size: 16px;
+    font-family: var(--font-manrope), sans-serif;
   }
 
   body {
     @apply bg-background text-foreground;
-    font-family: var(--font-dongle), sans-serif;
-    text-transform: uppercase;
+    font-family: var(--font-manrope), sans-serif;
     line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
   }
 
-  /* Headings → Manrope */
+  /* Headings → Manrope, natural case */
   h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-manrope), sans-serif;
-    text-transform: uppercase;
     font-weight: 700;
+    letter-spacing: -0.01em;
   }
 
-  /* Card titles + labels → Poppins */
-  .subtitle,
-  label,
-  th,
-  caption,
-  [data-slot="card-title"],
-  [data-subtitle] {
+  /* Card titles → Poppins, natural case */
+  [data-slot="card-title"] {
     font-family: var(--font-poppins), sans-serif;
-    text-transform: uppercase;
   }
+
+  /* Tabular figures everywhere numbers matter */
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+/* Deliberate uppercase accent — small eyebrow / section labels only */
+.eyebrow {
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-family: var(--font-poppins), sans-serif;
+  font-weight: 600;
 }
 
 /* ─── Starfield animation ──────────────────────────────────────────────── */

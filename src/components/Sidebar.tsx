@@ -9,22 +9,23 @@ import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
 
 const NAV_ITEMS = [
-  { href: '/dashboard',    label: 'Mission Control', sub: 'Overview'      },
-  { href: '/budget',       label: 'Fuel Allocation', sub: 'Budget'        },
-  { href: '/transactions', label: 'Transmissions',   sub: 'Transactions'  },
-  { href: '/accounts',     label: 'Stations',        sub: 'Accounts'      },
-  { href: '/insights',     label: 'Star Charts',     sub: 'Insights'      },
-  { href: '/goals',        label: 'Missions',        sub: 'Savings Goals' },
-  { href: '/debt',         label: 'Black Holes',     sub: 'Debt'          },
-  { href: '/events',       label: 'Events',          sub: 'Event Budgets' },
-  { href: '/household',    label: 'Crew',            sub: 'Household'      },
+  // label = plain, scannable word (primary). accent = space-theme flavor (secondary).
+  { href: '/dashboard',    label: 'Overview',     accent: 'Mission Control' },
+  { href: '/budget',       label: 'Budget',       accent: 'Fuel Allocation' },
+  { href: '/transactions', label: 'Transactions', accent: 'Transmissions'   },
+  { href: '/accounts',     label: 'Accounts',     accent: 'Stations'        },
+  { href: '/insights',     label: 'Insights',     accent: 'Star Charts'     },
+  { href: '/goals',        label: 'Goals',        accent: 'Missions'        },
+  { href: '/debt',         label: 'Debt',         accent: 'Black Holes'     },
+  { href: '/events',       label: 'Events',       accent: 'Event Budgets'   },
+  { href: '/household',    label: 'Household',    accent: 'Crew'            },
 ]
 
 function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname()
   return (
     <nav className="flex-1 px-4 py-4 space-y-0.5" aria-label="Main navigation">
-      {NAV_ITEMS.map(({ href, label, sub }) => {
+      {NAV_ITEMS.map(({ href, label, accent }) => {
         const active = pathname === href
         return (
           <Link
@@ -33,17 +34,17 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
             onClick={onNavigate}
             aria-current={active ? 'page' : undefined}
             className={cn(
-              'block px-3 py-2 rounded transition-colors duration-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-primary',
+              'block px-3 py-2 rounded-lg transition-colors duration-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-primary',
               active
                 ? 'bg-sidebar-primary text-sidebar-primary-foreground'
                 : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
             )}
           >
-            <span className="block text-xs font-semibold tracking-widest uppercase">{label}</span>
+            <span className="block text-sm font-semibold">{label}</span>
             <span className={cn(
-              'block text-xs mt-0.5',
-              active ? 'opacity-70' : 'opacity-50',
-            )}>{sub}</span>
+              'block text-[0.7rem] mt-0.5 tracking-wider uppercase',
+              active ? 'opacity-60' : 'opacity-40',
+            )}>{accent}</span>
           </Link>
         )
       })}

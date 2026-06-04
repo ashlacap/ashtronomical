@@ -94,7 +94,7 @@ export default async function TransactionsPage({
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Transmissions <span className="text-base font-normal text-muted-foreground ml-1">— Transactions</span></h1>
+          <h1 className="text-2xl font-bold tracking-tight">Transactions <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider ml-2 align-middle">Transmissions</span></h1>
           <p className="text-muted-foreground text-sm">
             {useCustomRange
               ? `${format(rangeStart, 'MMM d, yyyy')} – ${format(rangeEnd, 'MMM d, yyyy')}`

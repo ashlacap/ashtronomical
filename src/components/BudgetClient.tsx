@@ -195,7 +195,7 @@ export function BudgetClient({
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Fuel Allocation <span className="text-base font-normal text-muted-foreground ml-1">— Budget</span></h1>
+        <h1 className="text-2xl font-bold tracking-tight">Budget <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider ml-2 align-middle">Fuel Allocation</span></h1>
         <p className="text-muted-foreground text-sm">Set your monthly income and allocate it across spending categories.</p>
       </div>
 
