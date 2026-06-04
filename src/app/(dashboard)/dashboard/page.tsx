@@ -13,6 +13,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { PlaidLinkButton } from '@/components/PlaidLinkButton'
 import { SpendingChart } from '@/components/SpendingChart'
 import { MonthSelector } from '@/components/MonthSelector'
+import { AnimatedNumber } from '@/components/AnimatedNumber'
 import { cn } from '@/lib/utils'
 import { detectRecurringBills } from '@/lib/recurring'
 import { getUserSettings } from '@/lib/user-settings'
@@ -167,6 +168,33 @@ export default async function DashboardPage({
         </div>
       </div>
 
+      {/* Hero answer — "Am I okay this month?" */}
+      {setupComplete && (
+        <div className="rounded-2xl px-6 py-5 flex items-center justify-between gap-4" style={{ background: 'var(--sidebar)' }}>
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'oklch(0.6 0.006 265)' }}>
+              {remaining >= 0 ? 'Left to spend this month' : 'Over budget this month'}
+            </p>
+            <p className="text-3xl sm:text-4xl font-bold tabular-nums mt-1" style={{ color: remaining >= 0 ? '#a3e635' : '#f87171' }}>
+              <AnimatedNumber value={Math.abs(remaining)} format={fmt} />
+            </p>
+            <p className="text-sm mt-1" style={{ color: 'oklch(0.7 0.006 265)' }}>
+              {remaining >= 0
+                ? pctUsed < 80
+                  ? "You're pacing comfortably. Keep it up. ✦"
+                  : "Getting close to your limit — ease off where you can."
+                : "You've gone over — trim a category or adjust your budget."}
+            </p>
+          </div>
+          <div className="hidden sm:flex flex-col items-end shrink-0">
+            <span className="text-xs uppercase tracking-wider" style={{ color: 'oklch(0.55 0.006 265)' }}>Budget used</span>
+            <span className="text-2xl font-bold tabular-nums" style={{ color: pctUsed >= 100 ? '#f87171' : 'oklch(0.92 0.004 265)' }}>
+              {Math.round(pctUsed)}%
+            </span>
+          </div>
+        </div>
+      )}
+
       {/* Getting-started checklist (new users) */}
       {!setupComplete && (
         <Card className="border-primary/30 bg-primary/[0.03]">
@@ -291,10 +319,10 @@ export default async function DashboardPage({
       {/* Row 2: stat cards + Sector breakdown */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="grid grid-cols-2 gap-3">
-          <DarkStatCard label="Monthly Income" value={fmt(income)} sub="set in Fuel Allocation" Icon={Zap} />
-          <DarkStatCard label="Total Spent" value={fmt(totalSpent)} sub={`of ${fmt(totalBudgeted)} budgeted`} Icon={Flame} />
-          <DarkStatCard label="Remaining" value={fmt(remaining)} sub={remaining < 0 ? 'over budget' : 'left this period'} Icon={Vault} />
-          <DarkStatCard label="Total Debt" value={fmt(totalDebt)} sub={totalDebt > 0 ? 'track on Debt page' : 'debt-free'} Icon={Orbit} />
+          <DarkStatCard label="Monthly Income" amount={income} format={fmt} sub="set in Fuel Allocation" Icon={Zap} />
+          <DarkStatCard label="Total Spent" amount={totalSpent} format={fmt} sub={`of ${fmt(totalBudgeted)} budgeted`} Icon={Flame} />
+          <DarkStatCard label="Remaining" amount={remaining} format={fmt} sub={remaining < 0 ? 'over budget' : 'left this period'} Icon={Vault} />
+          <DarkStatCard label="Total Debt" amount={totalDebt} format={fmt} sub={totalDebt > 0 ? 'track on Debt page' : 'debt-free'} Icon={Orbit} />
         </div>
 
         <Card>
@@ -476,9 +504,9 @@ function BudgetRing({ pct }: { pct: number }) {
   )
 }
 
-function DarkStatCard({ label, value, sub, Icon }: { label: string; value: string; sub: string; Icon: LucideIcon }) {
+function DarkStatCard({ label, amount, format, sub, Icon }: { label: string; amount: number; format: (n: number) => string; sub: string; Icon: LucideIcon }) {
   return (
-    <div className="rounded-xl p-5 flex flex-col justify-between min-h-[160px] relative overflow-hidden" style={{ background: 'var(--sidebar)' }}>
+    <div className="rounded-xl p-5 flex flex-col justify-between min-h-[160px] relative overflow-hidden transition-transform hover:-translate-y-0.5" style={{ background: 'var(--sidebar)' }}>
       <div className="absolute bottom-3 right-3 opacity-[0.06]" aria-hidden="true">
         <Icon strokeWidth={1} style={{ width: 90, height: 90, color: 'oklch(0.92 0.004 265)' }} />
       </div>
@@ -489,7 +517,9 @@ function DarkStatCard({ label, value, sub, Icon }: { label: string; value: strin
         </div>
       </div>
       <div>
-        <p className="text-3xl font-bold tabular-nums leading-none" style={{ fontFamily: 'var(--font-manrope)', color: 'oklch(0.95 0.004 265)' }}>{value}</p>
+        <p className="text-3xl font-bold tabular-nums leading-none" style={{ fontFamily: 'var(--font-manrope)', color: 'oklch(0.95 0.004 265)' }}>
+          <AnimatedNumber value={amount} format={format} />
+        </p>
         <p className="text-xs mt-1.5 uppercase tracking-wide" style={{ color: 'oklch(0.50 0.006 265)', fontFamily: 'var(--font-poppins)' }}>{sub}</p>
       </div>
     </div>

@@ -16,6 +16,8 @@ import { Progress } from '@/components/ui/progress'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { useCurrency } from '@/components/CurrencyProvider'
+import { celebrate } from '@/lib/celebrate'
+import { cn } from '@/lib/utils'
 
 type Goal = {
   id: string
@@ -141,13 +143,19 @@ function AddFundsDialog({
     if (!goal) return
     const parsed = parseFloat(amount)
     if (isNaN(parsed) || parsed <= 0) return
+    const willComplete = goal.currentAmount < goal.targetAmount && goal.currentAmount + parsed >= goal.targetAmount
     setPending(true)
     await addToGoal(goal.id, parsed, note)
-    toast.success(`Added ${fmt(parsed)} to ${goal.name}.`)
     setPending(false)
     setAmount('')
     setNote('')
     onClose()
+    if (willComplete) {
+      celebrate()
+      toast.success(`🎉 Goal reached — ${goal.emoji} ${goal.name} is fully funded!`)
+    } else {
+      toast.success(`Added ${fmt(parsed)} to ${goal.name}.`)
+    }
   }
 
   return (
@@ -240,7 +248,7 @@ export function GoalsClient({ initialGoals }: { initialGoals: Goal[] }) {
           const done = goal.currentAmount >= goal.targetAmount
 
           return (
-            <Card key={goal.id} className="relative">
+            <Card key={goal.id} className={cn('relative transition-shadow', done && 'ring-2 ring-green-400/40 shadow-[0_0_24px_-4px_rgba(74,222,128,0.4)]')}>
               <CardHeader className="pb-2 flex flex-row items-start justify-between">
                 <div className="flex items-center gap-2">
                   <span className="text-2xl leading-none">{goal.emoji}</span>
