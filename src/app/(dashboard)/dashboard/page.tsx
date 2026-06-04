@@ -196,10 +196,19 @@ export default async function DashboardPage({
       )}
 
       {/* Getting-started checklist (new users) */}
-      {!setupComplete && (
+      {!setupComplete && (() => {
+        const steps = [hasBank, hasTransactions, allCategorized]
+        const doneCount = steps.filter(Boolean).length
+        return (
         <Card className="border-primary/30 bg-primary/[0.03]">
           <CardHeader className="pb-3">
-            <CardTitle className="text-base">Get started with Ashtronomical</CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base">Get started with Ashtronomical</CardTitle>
+              <span className="text-xs font-semibold text-muted-foreground">{doneCount} of 3 done</span>
+            </div>
+            <div className="h-1.5 w-full rounded-full bg-muted mt-2 overflow-hidden">
+              <div className="h-full rounded-full bg-primary transition-all duration-500" style={{ width: `${(doneCount / 3) * 100}%` }} />
+            </div>
           </CardHeader>
           <CardContent className="space-y-3">
             <ChecklistItem done={hasBank} label="Connect a bank account" hint="Automatically import your transactions">
@@ -217,7 +226,8 @@ export default async function DashboardPage({
             </ChecklistItem>
           </CardContent>
         </Card>
-      )}
+        )
+      })()}
 
       {/* Uncategorized alert */}
       {uncategorizedCount > 0 && setupComplete && (

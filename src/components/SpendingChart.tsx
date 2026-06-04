@@ -22,8 +22,9 @@ type ChartData = {
 export function SpendingChart({ data, currency = 'USD' }: { data: ChartData[]; currency?: string }) {
   if (!data.length) {
     return (
-      <div className="flex items-center justify-center h-48 text-muted-foreground text-sm">
-        No spending data yet
+      <div className="flex flex-col items-center justify-center h-48 text-muted-foreground text-sm gap-1.5">
+        <span className="text-2xl opacity-40">✦</span>
+        <span>Add a few transactions and your spending will light up here.</span>
       </div>
     )
   }

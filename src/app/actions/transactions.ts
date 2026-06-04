@@ -129,10 +129,52 @@ export async function createManualTransaction(
   return { success: true }
 }
 
-export async function deleteManualTransaction(transactionId: string): Promise<void> {
+export type DeletedTxn = {
+  name: string
+  merchantName: string | null
+  amount: number
+  date: string
+  categoryId: string | null
+  note: string | null
+  isTransfer: boolean
+} | null
+
+export async function deleteManualTransaction(transactionId: string): Promise<DeletedTxn> {
   const session = await requireAuth()
-  await db.transaction.deleteMany({
+  const txn = await db.transaction.findFirst({
     where: { id: transactionId, userId: session.userId, isManual: true },
+  })
+  if (!txn) return null
+
+  await db.transaction.delete({ where: { id: txn.id } })
+  revalidatePath('/transactions')
+  revalidatePath('/dashboard')
+  return {
+    name: txn.name,
+    merchantName: txn.merchantName,
+    amount: txn.amount,
+    date: txn.date.toISOString(),
+    categoryId: txn.categoryId,
+    note: txn.note,
+    isTransfer: txn.isTransfer,
+  }
+}
+
+export async function restoreManualTransaction(data: NonNullable<DeletedTxn>): Promise<void> {
+  const session = await requireAuth()
+  await db.transaction.create({
+    data: {
+      userId: session.userId,
+      name: data.name,
+      merchantName: data.merchantName,
+      amount: data.amount,
+      date: new Date(data.date),
+      categoryId: data.categoryId,
+      note: data.note,
+      isTransfer: data.isTransfer,
+      isManual: true,
+      pending: false,
+    },
   })
   revalidatePath('/transactions')
   revalidatePath('/dashboard')

@@ -8,6 +8,7 @@ import {
   bulkUpdateCategory,
   createManualTransaction,
   deleteManualTransaction,
+  restoreManualTransaction,
   setTransactionNote,
 } from '@/app/actions/transactions'
 import { toast } from 'sonner'
@@ -313,8 +314,22 @@ export function TransactionList({
   }
 
   async function handleDelete(txnId: string) {
-    await deleteManualTransaction(txnId)
-    toast.success('Transaction deleted.')
+    const deleted = await deleteManualTransaction(txnId)
+    router.refresh()
+    if (deleted) {
+      toast.success('Transaction deleted.', {
+        action: {
+          label: 'Undo',
+          onClick: async () => {
+            await restoreManualTransaction(deleted)
+            router.refresh()
+            toast.success('Transaction restored.')
+          },
+        },
+      })
+    } else {
+      toast.success('Transaction deleted.')
+    }
   }
 
   function toggleSelect(id: string) {
