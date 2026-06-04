@@ -176,7 +176,7 @@ export default async function DashboardPage({
               {remaining >= 0 ? 'Left to spend this month' : 'Over budget this month'}
             </p>
             <p className="text-3xl sm:text-4xl font-bold tabular-nums mt-1" style={{ color: remaining >= 0 ? '#a3e635' : '#f87171' }}>
-              <AnimatedNumber value={Math.abs(remaining)} format={fmt} />
+              <AnimatedNumber value={Math.abs(remaining)} />
             </p>
             <p className="text-sm mt-1" style={{ color: 'oklch(0.7 0.006 265)' }}>
               {remaining >= 0
@@ -329,10 +329,10 @@ export default async function DashboardPage({
       {/* Row 2: stat cards + Sector breakdown */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="grid grid-cols-2 gap-3">
-          <DarkStatCard label="Monthly Income" amount={income} format={fmt} sub="set in Fuel Allocation" Icon={Zap} />
-          <DarkStatCard label="Total Spent" amount={totalSpent} format={fmt} sub={`of ${fmt(totalBudgeted)} budgeted`} Icon={Flame} />
-          <DarkStatCard label="Remaining" amount={remaining} format={fmt} sub={remaining < 0 ? 'over budget' : 'left this period'} Icon={Vault} />
-          <DarkStatCard label="Total Debt" amount={totalDebt} format={fmt} sub={totalDebt > 0 ? 'track on Debt page' : 'debt-free'} Icon={Orbit} />
+          <DarkStatCard label="Monthly Income" amount={income} sub="set in Fuel Allocation" Icon={Zap} />
+          <DarkStatCard label="Total Spent" amount={totalSpent} sub={`of ${fmt(totalBudgeted)} budgeted`} Icon={Flame} />
+          <DarkStatCard label="Remaining" amount={remaining} sub={remaining < 0 ? 'over budget' : 'left this period'} Icon={Vault} />
+          <DarkStatCard label="Total Debt" amount={totalDebt} sub={totalDebt > 0 ? 'track on Debt page' : 'debt-free'} Icon={Orbit} />
         </div>
 
         <Card>
@@ -514,7 +514,7 @@ function BudgetRing({ pct }: { pct: number }) {
   )
 }
 
-function DarkStatCard({ label, amount, format, sub, Icon }: { label: string; amount: number; format: (n: number) => string; sub: string; Icon: LucideIcon }) {
+function DarkStatCard({ label, amount, sub, Icon }: { label: string; amount: number; sub: string; Icon: LucideIcon }) {
   return (
     <div className="rounded-xl p-5 flex flex-col justify-between min-h-[160px] relative overflow-hidden transition-transform hover:-translate-y-0.5" style={{ background: 'var(--sidebar)' }}>
       <div className="absolute bottom-3 right-3 opacity-[0.06]" aria-hidden="true">
@@ -528,7 +528,7 @@ function DarkStatCard({ label, amount, format, sub, Icon }: { label: string; amo
       </div>
       <div>
         <p className="text-3xl font-bold tabular-nums leading-none" style={{ fontFamily: 'var(--font-manrope)', color: 'oklch(0.95 0.004 265)' }}>
-          <AnimatedNumber value={amount} format={format} />
+          <AnimatedNumber value={amount} />
         </p>
         <p className="text-xs mt-1.5 uppercase tracking-wide" style={{ color: 'oklch(0.50 0.006 265)', fontFamily: 'var(--font-poppins)' }}>{sub}</p>
       </div>
