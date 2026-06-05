@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { logout } from '@/app/actions/auth'
-import { User, Settings, LogOut } from 'lucide-react'
+import { User, Settings, LogOut, BarChart3 } from 'lucide-react'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,9 +14,10 @@ import {
 interface UserMenuProps {
   initials: string
   userName: string
+  isAdmin?: boolean
 }
 
-export function UserMenu({ initials, userName }: UserMenuProps) {
+export function UserMenu({ initials, userName, isAdmin }: UserMenuProps) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
@@ -46,6 +47,12 @@ export function UserMenu({ initials, userName }: UserMenuProps) {
           <Settings className="h-4 w-4" />
           Settings
         </DropdownMenuItem>
+        {isAdmin && (
+          <DropdownMenuItem className="gap-2" render={<Link href="/admin" />}>
+            <BarChart3 className="h-4 w-4" />
+            Admin
+          </DropdownMenuItem>
+        )}
         <DropdownMenuSeparator />
         <DropdownMenuItem variant="destructive" className="gap-2" onClick={() => logout()}>
           <LogOut className="h-4 w-4" />

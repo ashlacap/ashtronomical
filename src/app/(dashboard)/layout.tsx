@@ -5,13 +5,14 @@ import { AshtroIcon } from '@/components/AshtroIcon'
 import { UserMenu } from '@/components/UserMenu'
 import { NotificationBell } from '@/components/NotificationBell'
 import { CurrencyProvider } from '@/components/CurrencyProvider'
+import { isAdmin } from '@/lib/admin'
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const session = await requireAuth()
-  const user = await db.user.findUnique({
-    where: { id: session.userId },
-    select: { name: true, currency: true },
-  })
+  const [user, admin] = await Promise.all([
+    db.user.findUnique({ where: { id: session.userId }, select: { name: true, currency: true } }),
+    isAdmin(session.userId),
+  ])
   const userName = user?.name ?? ''
   const currency = user?.currency ?? 'USD'
   const initials = userName.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2) || 'A'
@@ -34,7 +35,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
             </div>
             <div className="flex items-center gap-1.5">
               <NotificationBell />
-              <UserMenu initials={initials} userName={userName} />
+              <UserMenu initials={initials} userName={userName} isAdmin={admin} />
             </div>
           </header>
 

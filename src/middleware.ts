@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { decrypt } from '@/lib/session'
 
-const protectedRoutes = ['/dashboard', '/budget', '/transactions', '/accounts', '/insights', '/goals', '/events', '/debt', '/household', '/profile', '/settings']
+const protectedRoutes = ['/dashboard', '/budget', '/transactions', '/accounts', '/insights', '/goals', '/events', '/debt', '/household', '/profile', '/settings', '/admin']
 const publicRoutes = ['/login', '/register']
 // Always reachable regardless of auth/onboarding state
 const exemptRoutes = ['/forgot-password', '/reset-password', '/verify-email', '/privacy', '/terms']
