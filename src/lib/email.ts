@@ -17,8 +17,9 @@ const FROM = process.env.EMAIL_FROM ?? process.env.SMTP_USER ?? 'Ashtronomical <
 export async function sendEmail({ to, subject, html, text }: SendEmailArgs): Promise<{ ok: boolean; error?: string }> {
   const plain = text ?? stripHtml(html)
 
-  // 1. Resend
-  if (process.env.RESEND_API_KEY) {
+  // 1. Resend — only when a real Resend key is present (they start with "re_").
+  // This way a leftover/placeholder RESEND_API_KEY doesn't shadow SMTP.
+  if (process.env.RESEND_API_KEY?.startsWith('re_')) {
     try {
       const res = await fetch('https://api.resend.com/emails', {
         method: 'POST',
