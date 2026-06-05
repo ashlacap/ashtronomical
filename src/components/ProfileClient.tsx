@@ -96,9 +96,10 @@ export function ProfileClient({
               disabled={resending}
               onClick={async () => {
                 setResending(true)
-                await sendVerificationEmail()
+                const res = await sendVerificationEmail()
                 setResending(false)
-                toast.success('Verification email sent.')
+                if (res?.success) toast.success('Verification email sent — check your inbox (and spam).')
+                else toast.error(res?.message ?? 'Could not send the email.')
               }}
             >
               {resending ? 'Sending…' : 'Resend'}

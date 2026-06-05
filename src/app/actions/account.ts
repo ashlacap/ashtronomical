@@ -23,7 +23,7 @@ export async function sendVerificationEmail(): Promise<FlowState> {
 
   const token = await createVerificationToken(user.id, 'email-verify')
   const url = appUrl(`/verify-email?token=${token}`)
-  await sendEmail({
+  const result = await sendEmail({
     to: user.email,
     subject: 'Verify your Ashtronomical email',
     html: emailLayout(
@@ -32,6 +32,7 @@ export async function sendVerificationEmail(): Promise<FlowState> {
       { label: 'Verify email', url },
     ),
   })
+  if (!result.ok) return { message: result.error ?? 'Could not send the email.' }
   return { success: true }
 }
 

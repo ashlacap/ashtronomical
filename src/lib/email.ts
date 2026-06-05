@@ -14,7 +14,7 @@ type SendEmailArgs = {
 
 const FROM = process.env.EMAIL_FROM ?? process.env.SMTP_USER ?? 'Ashtronomical <noreply@ashtronomical.app>'
 
-export async function sendEmail({ to, subject, html, text }: SendEmailArgs): Promise<{ ok: boolean }> {
+export async function sendEmail({ to, subject, html, text }: SendEmailArgs): Promise<{ ok: boolean; error?: string }> {
   const plain = text ?? stripHtml(html)
 
   // 1. Resend
@@ -25,11 +25,15 @@ export async function sendEmail({ to, subject, html, text }: SendEmailArgs): Pro
         headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ from: FROM, to, subject, html, text: plain }),
       })
-      if (!res.ok) { console.error('Resend send failed:', await res.text()); return { ok: false } }
+      if (!res.ok) {
+        const body = await res.text()
+        console.error('Resend send failed:', body)
+        return { ok: false, error: `Resend: ${body.slice(0, 160)}` }
+      }
       return { ok: true }
     } catch (err) {
       console.error('Resend send error:', err)
-      return { ok: false }
+      return { ok: false, error: err instanceof Error ? err.message : 'Resend error' }
     }
   }
 
@@ -49,17 +53,17 @@ export async function sendEmail({ to, subject, html, text }: SendEmailArgs): Pro
       return { ok: true }
     } catch (err) {
       console.error('SMTP send error:', err)
-      return { ok: false }
+      return { ok: false, error: err instanceof Error ? err.message : 'SMTP error' }
     }
   }
 
-  // 3. Dev fallback — surface the email in server logs so flows are testable.
-  console.log('\n────────── EMAIL (dev console transport) ──────────')
+  // 3. No transport configured — log to server console.
+  console.log('\n────────── EMAIL (no transport configured) ──────────')
   console.log(`To:      ${to}`)
   console.log(`Subject: ${subject}`)
   console.log(`\n${plain}`)
-  console.log('───────────────────────────────────────────────────\n')
-  return { ok: true }
+  console.log('─────────────────────────────────────────────────────\n')
+  return { ok: false, error: 'No email transport configured (set SMTP_USER/SMTP_PASS or RESEND_API_KEY).' }
 }
 
 function stripHtml(html: string): string {
