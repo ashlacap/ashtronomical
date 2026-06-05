@@ -58,13 +58,19 @@ export async function sendEmail({ to, subject, html, text }: SendEmailArgs): Pro
     }
   }
 
-  // 3. No transport configured — log to server console.
+  // 3. No transport configured — report which vars are missing.
+  const missing: string[] = []
+  if (!process.env.SMTP_USER) missing.push('SMTP_USER')
+  if (!process.env.SMTP_PASS) missing.push('SMTP_PASS')
   console.log('\n────────── EMAIL (no transport configured) ──────────')
-  console.log(`To:      ${to}`)
-  console.log(`Subject: ${subject}`)
-  console.log(`\n${plain}`)
+  console.log(`To: ${to} · Subject: ${subject}`)
   console.log('─────────────────────────────────────────────────────\n')
-  return { ok: false, error: 'No email transport configured (set SMTP_USER/SMTP_PASS or RESEND_API_KEY).' }
+  return {
+    ok: false,
+    error: missing.length
+      ? `Email not configured — missing ${missing.join(' and ')} in Vercel. Add them and redeploy.`
+      : 'No email transport configured.',
+  }
 }
 
 function stripHtml(html: string): string {
