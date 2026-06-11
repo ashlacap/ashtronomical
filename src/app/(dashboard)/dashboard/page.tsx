@@ -14,6 +14,7 @@ import { PlaidLinkButton } from '@/components/PlaidLinkButton'
 import { SpendingChart } from '@/components/SpendingChart'
 import { MonthSelector } from '@/components/MonthSelector'
 import { AnimatedNumber } from '@/components/AnimatedNumber'
+import { Greeting } from '@/components/Greeting'
 import { cn } from '@/lib/utils'
 import { detectRecurringBills } from '@/lib/recurring'
 import { getUserSettings } from '@/lib/user-settings'
@@ -157,9 +158,7 @@ export default async function DashboardPage({
       {/* Page header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">
-            {getGreeting()} {user?.name?.split(' ')[0] ?? 'Commander'}
-          </h1>
+          <Greeting name={user?.name?.split(' ')[0] ?? 'Commander'} />
           <p className="text-muted-foreground text-sm">{periodLabel} overview</p>
         </div>
         <div className="flex items-center gap-3">
@@ -486,13 +485,6 @@ function ChecklistItem({ done, label, hint, children }: { done: boolean; label: 
   )
 }
 
-function getGreeting() {
-  const h = new Date().getHours()
-  if (h < 5)  return 'Working late,'
-  if (h < 12) return 'Good morning,'
-  if (h < 17) return 'Good afternoon,'
-  return 'Good evening,'
-}
 
 function BudgetRing({ pct }: { pct: number }) {
   const clamped = Math.min(Math.max(pct, 0), 100)
