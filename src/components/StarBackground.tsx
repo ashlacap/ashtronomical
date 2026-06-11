@@ -1,6 +1,6 @@
 // Deterministic starfield — no Math.random(), SSR-safe.
 // Golden ratio distribution (φ ≈ 137.508°) spreads stars naturally.
-type Star = { cx: string; cy: string; r: number; opacity: number; duration: string }
+type Star = { cx: string; cy: string; r: number; opacity: number; duration: string; floatDuration: string; floatDist: string }
 
 function generateStars(count: number): Star[] {
   return Array.from({ length: count }, (_, i) => {
@@ -9,7 +9,10 @@ function generateStars(count: number): Star[] {
     const r = i % 11 === 0 ? 1.4 : i % 5 === 0 ? 1.0 : 0.65
     const opacity = 0.12 + (i % 13) * 0.035
     const duration = `${2.5 + (i % 7) * 0.6}s`
-    return { cx: `${cx}%`, cy: `${cy}%`, r, opacity: parseFloat(opacity.toFixed(2)), duration }
+    // Each star bobs at its own pace/height for a parallax drift.
+    const floatDuration = `${5 + (i % 9) * 0.8}s`
+    const floatDist = `${-(3 + (i % 5) * 1.5)}px`
+    return { cx: `${cx}%`, cy: `${cy}%`, r, opacity: parseFloat(opacity.toFixed(2)), duration, floatDuration, floatDist }
   })
 }
 
@@ -35,6 +38,8 @@ export function StarBackground({ count = 140, className = '' }: { count?: number
               {
                 '--star-opacity': s.opacity,
                 '--star-duration': s.duration,
+                '--float-duration': s.floatDuration,
+                '--float-dist': s.floatDist,
                 animationDelay: `${(i * 0.07) % 4}s`,
               } as React.CSSProperties
             }

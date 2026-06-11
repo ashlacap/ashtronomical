@@ -175,8 +175,20 @@
   50%       { opacity: calc(var(--star-opacity, 0.4) * 0.35); }
 }
 
+/* Gentle vertical bob — gives the field a floating, pixel-drift feel. */
+@keyframes star-float {
+  0%, 100% { transform: translateY(0); }
+  50%       { transform: translateY(var(--float-dist, -6px)); }
+}
+
 .star-twinkle {
-  animation: twinkle var(--star-duration, 3s) ease-in-out infinite;
+  animation:
+    twinkle var(--star-duration, 3s) ease-in-out infinite,
+    star-float var(--float-duration, 6s) ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .star-twinkle { animation: none; }
 }
 
 /* ─── Glow pulse for accent elements ──────────────────────────────────── */

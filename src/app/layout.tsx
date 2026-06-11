@@ -23,8 +23,20 @@ const dongle = Dongle({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.APP_URL ?? "https://ashtronomical.vercel.app"),
   title: "Ashtronomical — Personal Finance",
-  description: "Navigate your financial universe.",
+  description: "Your financial universe, mapped. Budget effortlessly with automatic bank sync — no manual transaction entry.",
+  openGraph: {
+    title: "Ashtronomical",
+    description: "Your financial universe, mapped. Budget effortlessly with automatic bank sync.",
+    siteName: "Ashtronomical",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Ashtronomical",
+    description: "Your financial universe, mapped. Budget effortlessly with automatic bank sync.",
+  },
 };
 
 export default function RootLayout({
