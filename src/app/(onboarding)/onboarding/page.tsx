@@ -20,7 +20,7 @@ type AnyPlanId = PlanId | 'custom'
 const CUSTOM_PLAN = {
   id: 'custom' as const,
   name: 'Set it up myself',
-  description: 'Skip the presets and build your own categories from scratch in the Budget page.',
+  description: 'Skip the presets and build your own categories from scratch in Allocations.',
   buckets: {} as Record<string, number>,
   categories: [] as { name: string; color: string; pct: number; bucket: string }[],
 }
@@ -59,9 +59,9 @@ export default function OnboardingPage() {
           </div>
 
           <div className="space-y-1">
-            <h1 className="text-2xl font-bold tracking-tight">Set up your budget</h1>
+            <h1 className="text-2xl font-bold tracking-tight">Let&apos;s track your money</h1>
             <p className="text-sm text-muted-foreground">
-              Pick a plan and enter your monthly take-home income. Everything is editable after setup.
+              Allocate your income across the things that matter, so you always know how much is left before you overspend. Pick a starting plan — everything is editable after setup.
             </p>
           </div>
 
@@ -83,7 +83,7 @@ export default function OnboardingPage() {
           </div>
 
           <div className="space-y-2">
-            <p className="text-sm font-semibold">Choose a budgeting plan</p>
+            <p className="text-sm font-semibold">Choose an allocation plan</p>
             <div className="space-y-2">
               {ALL_PLANS.map((p) => {
                 const active = selectedPlan === p.id
@@ -143,13 +143,13 @@ export default function OnboardingPage() {
             <SlidersHorizontal className="h-16 w-16 opacity-20" />
             <div>
               <p className="font-semibold text-lg text-foreground">You're in full control</p>
-              <p className="text-sm mt-1">After launching, go to Fuel Allocation to add your own spending categories.</p>
+              <p className="text-sm mt-1">After launching, go to Allocations to add your own spending categories.</p>
             </div>
           </div>
         ) : income > 0 ? (
           <div className="space-y-6 max-w-2xl w-full mx-auto">
             <div>
-              <h2 className="text-xl font-bold">Budget preview</h2>
+              <h2 className="text-xl font-bold">Allocation preview</h2>
               <p className="text-sm text-muted-foreground mt-1">
                 Based on <strong>{fmt(income)}/mo</strong> · {plan.name}
               </p>

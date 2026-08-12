@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { plaidClient } from '@/lib/plaid'
-import { guessCategory } from '@/lib/categorize'
+import { categorizeTransactions } from '@/lib/ai-categorize'
 import { decryptSecret } from '@/lib/crypto'
 
 export async function POST(req: NextRequest) {
@@ -46,8 +46,17 @@ export async function POST(req: NextRequest) {
 
     const data = res.data
 
+    const categoryIds = await categorizeTransactions(
+      [...data.added, ...data.modified].map((t) => ({
+        id: t.transaction_id,
+        name: t.name,
+        merchantName: t.merchant_name,
+      })),
+      userCategories,
+    )
+
     for (const txn of data.added) {
-      const categoryId = guessCategory(txn.name, txn.merchant_name, userCategories)
+      const categoryId = categoryIds.get(txn.transaction_id) ?? null
       await db.transaction.upsert({
         where: { plaidTransactionId: txn.transaction_id },
         update: {
@@ -72,7 +81,7 @@ export async function POST(req: NextRequest) {
     }
 
     for (const txn of data.modified) {
-      const categoryId = guessCategory(txn.name, txn.merchant_name, userCategories)
+      const categoryId = categoryIds.get(txn.transaction_id) ?? null
       await db.transaction.updateMany({
         where: { plaidTransactionId: txn.transaction_id },
         data: {

@@ -123,7 +123,44 @@ export async function deleteCategory(categoryId: string): Promise<void> {
 export async function sweepUnspentToSavings(
   categoryId: string,
   amount: number,
+  period?: string,
 ): Promise<void> {
+  const session = await requireAuth()
+  const cat = await db.category.findFirst({
+    where: { id: categoryId, userId: session.userId },
+    include: { savingsGoal: true },
+  })
+  if (!cat?.savingsGoal || amount <= 0) return
+
+  // Tag the contribution with the category+period so a sweep is never applied
+  // twice for the same month (e.g. if the dashboard banner is clicked twice).
+  const note = period ? `sweep:${categoryId}:${period}` : null
+  if (note) {
+    const already = await db.goalContribution.findFirst({
+      where: { goalId: cat.savingsGoal.id, note },
+    })
+    if (already) return
+  }
+
+  await db.$transaction([
+    db.savingsGoal.update({
+      where: { id: cat.savingsGoal.id },
+      data: { currentAmount: Math.min(cat.savingsGoal.currentAmount + amount, cat.savingsGoal.targetAmount) },
+    }),
+    db.goalContribution.create({
+      data: { goalId: cat.savingsGoal.id, amount, note },
+    }),
+  ])
+
+  revalidatePath('/dashboard')
+  revalidatePath('/goals')
+}
+
+/**
+ * Dismisses the month-end sweep prompt for a category/period without
+ * transferring anything, so the banner doesn't keep reappearing.
+ */
+export async function dismissSweepPrompt(categoryId: string, period: string): Promise<void> {
   const session = await requireAuth()
   const cat = await db.category.findFirst({
     where: { id: categoryId, userId: session.userId },
@@ -131,15 +168,13 @@ export async function sweepUnspentToSavings(
   })
   if (!cat?.savingsGoal) return
 
-  await db.savingsGoal.update({
-    where: { id: cat.savingsGoal.id },
-    data: {
-      currentAmount: {
-        increment: amount,
-      },
-    },
+  const note = `sweep-dismissed:${categoryId}:${period}`
+  const already = await db.goalContribution.findFirst({ where: { goalId: cat.savingsGoal.id, note } })
+  if (already) return
+
+  await db.goalContribution.create({
+    data: { goalId: cat.savingsGoal.id, amount: 0, note },
   })
 
   revalidatePath('/dashboard')
-  revalidatePath('/goals')
 }

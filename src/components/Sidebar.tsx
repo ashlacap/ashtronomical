@@ -11,8 +11,8 @@ import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
 const NAV_ITEMS = [
   // label = plain, scannable word (primary). accent = space-theme flavor (secondary).
   { href: '/dashboard',    label: 'Overview',     accent: 'Mission Control' },
-  { href: '/budget',       label: 'Budget',       accent: 'Fuel Allocation' },
   { href: '/transactions', label: 'Transactions', accent: 'Transmissions'   },
+  { href: '/budget',       label: 'Allocations',  accent: 'Fuel Allocation' },
   { href: '/accounts',     label: 'Accounts',     accent: 'Stations'        },
   { href: '/insights',     label: 'Insights',     accent: 'Star Charts'     },
   { href: '/goals',        label: 'Goals',        accent: 'Missions'        },

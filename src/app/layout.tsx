@@ -24,18 +24,18 @@ const dongle = Dongle({
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.APP_URL ?? "https://ashtronomical.vercel.app"),
-  title: "Ashtronomical — Personal Finance",
-  description: "Your financial universe, mapped. Budget effortlessly with automatic bank sync — no manual transaction entry.",
+  title: "Ashtronomical — Track Your Finances",
+  description: "Your financial universe, mapped. Track every dollar automatically, see exactly where it's going, and stay under budget without lifting a finger.",
   openGraph: {
     title: "Ashtronomical",
-    description: "Your financial universe, mapped. Budget effortlessly with automatic bank sync.",
+    description: "Your financial universe, mapped. Track every dollar automatically and stay under budget without lifting a finger.",
     siteName: "Ashtronomical",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
     title: "Ashtronomical",
-    description: "Your financial universe, mapped. Budget effortlessly with automatic bank sync.",
+    description: "Your financial universe, mapped. Track every dollar automatically and stay under budget without lifting a finger.",
   },
 };
 

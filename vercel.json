@@ -7,6 +7,10 @@
     {
       "path": "/api/cron/post-recurring",
       "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/api/cron/sync-transactions",
+      "schedule": "0 5 * * *"
     }
   ]
 }

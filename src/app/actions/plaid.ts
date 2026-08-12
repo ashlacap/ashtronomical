@@ -5,7 +5,7 @@ import { CountryCode, Products } from 'plaid'
 import { plaidClient } from '@/lib/plaid'
 import { db } from '@/lib/db'
 import { requireAuth } from '@/lib/session'
-import { guessCategory } from '@/lib/categorize'
+import { categorizeTransactions } from '@/lib/ai-categorize'
 import { encryptSecret, decryptSecret } from '@/lib/crypto'
 
 export async function createLinkToken(): Promise<string> {
@@ -16,6 +16,11 @@ export async function createLinkToken(): Promise<string> {
   // (sandbox / non-OAuth banks work without it).
   const redirectUri = process.env.PLAID_REDIRECT_URI
 
+  // Tells Plaid where to POST transaction-update notifications so new
+  // transactions sync automatically without the user ever clicking "Sync".
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? process.env.APP_URL
+  const webhookUrl = appUrl ? `${appUrl.replace(/\/$/, '')}/api/plaid/webhook` : undefined
+
   const response = await plaidClient.linkTokenCreate({
     user: { client_user_id: session.userId },
     client_name: 'Ashtronomical',
@@ -23,6 +28,7 @@ export async function createLinkToken(): Promise<string> {
     language: 'en',
     country_codes: [CountryCode.Us],
     ...(redirectUri ? { redirect_uri: redirectUri } : {}),
+    ...(webhookUrl ? { webhook: webhookUrl } : {}),
   })
 
   return response.data.link_token
@@ -78,23 +84,39 @@ export async function exchangeToken(
   }
 }
 
-export async function syncAllTransactions(): Promise<{ synced: number }> {
-  const session = await requireAuth()
-  const accounts = await db.bankAccount.findMany({ where: { userId: session.userId } })
+/**
+ * Syncs every linked bank account for a single user. Used by the daily cron
+ * backstop (and internally after linking a new account) — there is no
+ * user-facing manual sync anymore; Plaid's webhook plus this cron job keep
+ * transactions current automatically.
+ */
+export async function syncAllTransactionsForUser(userId: string): Promise<number> {
+  const accounts = await db.bankAccount.findMany({ where: { userId } })
   let totalSynced = 0
 
   for (const account of accounts) {
-    totalSynced += await syncTransactionsForAccount(
-      session.userId,
-      account.id,
-      decryptSecret(account.plaidAccessToken),
-    )
+    const accessToken = decryptSecret(account.plaidAccessToken)
+    await ensureWebhookRegistered(accessToken)
+    totalSynced += await syncTransactionsForAccount(userId, account.id, accessToken)
   }
 
-  revalidatePath('/dashboard')
-  revalidatePath('/transactions')
-  revalidatePath('/accounts')
-  return { synced: totalSynced }
+  return totalSynced
+}
+
+/**
+ * Points an already-linked Plaid item at our webhook, in case it was linked
+ * before webhook registration existed (or the URL changed). Safe to call
+ * repeatedly — Plaid just overwrites the stored webhook URL.
+ */
+export async function ensureWebhookRegistered(accessToken: string): Promise<void> {
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? process.env.APP_URL
+  if (!appUrl) return
+  const webhookUrl = `${appUrl.replace(/\/$/, '')}/api/plaid/webhook`
+  try {
+    await plaidClient.itemWebhookUpdate({ access_token: accessToken, webhook: webhookUrl })
+  } catch (err) {
+    console.error('Failed to register Plaid webhook:', err)
+  }
 }
 
 async function syncTransactionsForAccount(
@@ -117,8 +139,17 @@ async function syncTransactionsForAccount(
 
     const data = res.data
 
+    const categoryIds = await categorizeTransactions(
+      [...data.added, ...data.modified].map((t) => ({
+        id: t.transaction_id,
+        name: t.name,
+        merchantName: t.merchant_name,
+      })),
+      userCategories,
+    )
+
     for (const txn of data.added) {
-      const categoryId = guessCategory(txn.name, txn.merchant_name, userCategories)
+      const categoryId = categoryIds.get(txn.transaction_id) ?? null
       await db.transaction.upsert({
         where: { plaidTransactionId: txn.transaction_id },
         update: {
@@ -144,7 +175,7 @@ async function syncTransactionsForAccount(
     }
 
     for (const txn of data.modified) {
-      const categoryId = guessCategory(txn.name, txn.merchant_name, userCategories)
+      const categoryId = categoryIds.get(txn.transaction_id) ?? null
       await db.transaction.updateMany({
         where: { plaidTransactionId: txn.transaction_id },
         data: {
@@ -199,4 +230,48 @@ export async function disconnectAccount(bankAccountId: string): Promise<void> {
 
   revalidatePath('/accounts')
   revalidatePath('/dashboard')
+}
+
+const BACKFILL_BATCH_SIZE = 60
+const BACKFILL_MAX_BATCHES = 5 // caps a single run at 300 transactions
+
+/**
+ * Catches transactions that were synced before auto-categorization existed
+ * (or before a category/keyword was added) and are still sitting uncategorized.
+ * Runs silently — no button, no indication anything "AI" touched them; they
+ * just show up categorized, same as ones that arrive via sync. Batched small
+ * so each Claude call stays fast and well under its output token budget.
+ */
+export async function categorizeExistingTransactions(userId: string): Promise<number> {
+  const userCategories = await db.category.findMany({ where: { userId } })
+  if (userCategories.length === 0) return 0
+
+  let updated = 0
+
+  for (let batch = 0; batch < BACKFILL_MAX_BATCHES; batch++) {
+    const uncategorized = await db.transaction.findMany({
+      where: { userId, categoryId: null, isTransfer: false },
+      select: { id: true, name: true, merchantName: true },
+      take: BACKFILL_BATCH_SIZE,
+    })
+    if (uncategorized.length === 0) break
+
+    const categoryIds = await categorizeTransactions(
+      uncategorized.map((t) => ({ id: t.id, name: t.name, merchantName: t.merchantName })),
+      userCategories,
+    )
+
+    for (const txn of uncategorized) {
+      const categoryId = categoryIds.get(txn.id) ?? null
+      if (categoryId) {
+        await db.transaction.update({ where: { id: txn.id }, data: { categoryId } })
+        updated++
+      }
+    }
+
+    // Fewer than a full page means we've drained the backlog.
+    if (uncategorized.length < BACKFILL_BATCH_SIZE) break
+  }
+
+  return updated
 }

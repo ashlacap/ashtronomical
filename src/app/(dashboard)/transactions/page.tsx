@@ -4,7 +4,7 @@ import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns'
 import { TransactionList } from '@/components/TransactionList'
 import { RecurringManager } from '@/components/RecurringManager'
 import { ImportCsv } from '@/components/ImportCsv'
-import { SyncButton } from '@/components/SyncButton'
+import { getUserSettings } from '@/lib/user-settings'
 
 const PAGE_SIZE = 25
 
@@ -49,7 +49,9 @@ export default async function TransactionsPage({
       : {}),
   }
 
-  const [transactions, total, categories, pendingTxns, uncategorizedCount, recurringRules] = await Promise.all([
+  const settings = await getUserSettings()
+
+  const [transactions, total, categories, pendingTxns, uncategorizedCount, recurringRules, periodSpendTxns] = await Promise.all([
     db.transaction.findMany({
       where,
       include: { category: true },
@@ -79,9 +81,38 @@ export default async function TransactionsPage({
       where: { userId: session.userId },
       orderBy: { dayOfMonth: 'asc' },
     }),
+    // All spend in range, for the remaining-budget strip (independent of filters/pagination)
+    db.transaction.findMany({
+      where: { userId: session.userId, date: { gte: rangeStart, lte: rangeEnd }, pending: false, isTransfer: false, amount: { gt: 0 } },
+      select: { categoryId: true, amount: true },
+    }),
   ])
 
   const pendingTotal = pendingTxns.reduce((s, t) => s + t.amount, 0)
+
+  // Remaining budget per category for the selected period — same math as the
+  // dashboard, minus rollover (that's month-specific and this can be a custom range).
+  const spendByCategory = new Map<string, number>()
+  for (const t of periodSpendTxns) {
+    if (t.categoryId) spendByCategory.set(t.categoryId, (spendByCategory.get(t.categoryId) ?? 0) + t.amount)
+  }
+  const categoryBudgets = categories
+    .filter((c) => c.budgetAmount > 0)
+    .map((c) => {
+      const spent = spendByCategory.get(c.id) ?? 0
+      const pct = (spent / c.budgetAmount) * 100
+      return {
+        id: c.id,
+        name: c.name,
+        color: c.color,
+        budget: c.budgetAmount,
+        spent,
+        remaining: c.budgetAmount - spent,
+        pct,
+        overBudget: spent > c.budgetAmount,
+        nearBudget: spent <= c.budgetAmount && pct >= settings.alertThreshold,
+      }
+    })
 
   const months = Array.from({ length: 6 }, (_, i) => {
     const d = subMonths(now, i)
@@ -115,7 +146,6 @@ export default async function TransactionsPage({
             }))}
             categories={categories.map((c) => ({ id: c.id, name: c.name }))}
           />
-          <SyncButton />
         </div>
       </div>
 
@@ -134,7 +164,7 @@ export default async function TransactionsPage({
           categoryName: t.category?.name ?? null,
           categoryColor: t.category?.color ?? null,
         }))}
-        categories={categories.map((c) => ({ id: c.id, name: c.name, color: c.color }))}
+        categories={categories.map((c) => ({ id: c.id, name: c.name, color: c.color, keywords: c.keywords }))}
         months={months}
         selectedMonth={params.month ?? format(now, 'yyyy-MM')}
         selectedCategoryId={params.categoryId}
@@ -146,6 +176,7 @@ export default async function TransactionsPage({
         uncategorizedCount={uncategorizedCount}
         rangeFrom={params.from}
         rangeTo={params.to}
+        categoryBudgets={categoryBudgets}
       />
     </div>
   )

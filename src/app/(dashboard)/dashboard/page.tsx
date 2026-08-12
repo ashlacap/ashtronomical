@@ -15,6 +15,7 @@ import { SpendingChart } from '@/components/SpendingChart'
 import { MonthSelector } from '@/components/MonthSelector'
 import { AnimatedNumber } from '@/components/AnimatedNumber'
 import { Greeting } from '@/components/Greeting'
+import { SweepPrompt } from '@/components/SweepPrompt'
 import { cn } from '@/lib/utils'
 import { detectRecurringBills } from '@/lib/recurring'
 import { getUserSettings } from '@/lib/user-settings'
@@ -58,7 +59,7 @@ export default async function DashboardPage({
     return { value: format(d, 'yyyy-MM'), label: format(d, 'MMMM yyyy') }
   })
 
-  const [user, budget, categories, transactions, pendingTxns, allRecentTxns, bankAccounts, goals, prevMonthTxns, savedAgg, debtTotals] =
+  const [user, budget, categories, transactions, pendingTxns, allRecentTxns, bankAccounts, goals, prevMonthTxns, savedAgg, debtTotals, sweepCategories] =
     await Promise.all([
       db.user.findUnique({ where: { id: session.userId }, select: { name: true } }),
       db.budget.findFirst({
@@ -86,6 +87,11 @@ export default async function DashboardPage({
       }),
       db.savingsGoal.aggregate({ where: { userId: session.userId }, _sum: { currentAmount: true } }),
       getDebtTotals(session.userId),
+      // Categories eligible for a month-end sweep prompt: non-rollover, linked to a goal.
+      db.category.findMany({
+        where: { userId: session.userId, rollover: false, savingsGoalId: { not: null } },
+        include: { savingsGoal: true },
+      }),
     ])
 
   const totalDebt = debtTotals.totalDebt
@@ -101,6 +107,33 @@ export default async function DashboardPage({
     if (cat.rollover) effective += Math.max(0, cat.budgetAmount - (prevMonthSpendByCat.get(cat.id) ?? 0))
     effectiveBudgetByCat.set(cat.id, effective)
   }
+
+  // Month-end sweep prompt: non-rollover categories linked to a savings goal
+  // that had unspent budget last period, and haven't already been swept or
+  // dismissed for that period. Only shown once the period has actually ended
+  // (i.e. "now" is past it) so it never fires mid-month.
+  const prevPeriodId = format(prevPeriodStart, 'yyyy-MM-dd')
+  const sweepGoalIds = sweepCategories.map((c) => c.savingsGoalId).filter((id): id is string => !!id)
+  const sweepHistory = sweepGoalIds.length > 0
+    ? await db.goalContribution.findMany({
+        where: {
+          goalId: { in: sweepGoalIds },
+          note: { in: sweepCategories.flatMap((c) => [`sweep:${c.id}:${prevPeriodId}`, `sweep-dismissed:${c.id}:${prevPeriodId}`]) },
+        },
+        select: { note: true },
+      })
+    : []
+  const handledNotes = new Set(sweepHistory.map((h) => h.note))
+
+  const sweepCandidates = now > prevPeriodEnd
+    ? sweepCategories
+        .map((cat) => {
+          const spent = prevMonthSpendByCat.get(cat.id) ?? 0
+          const leftover = cat.budgetAmount - spent
+          return { id: cat.id, name: cat.name, color: cat.color, leftover, goal: cat.savingsGoal! }
+        })
+        .filter((c) => c.leftover > 0 && !handledNotes.has(`sweep:${c.id}:${prevPeriodId}`) && !handledNotes.has(`sweep-dismissed:${c.id}:${prevPeriodId}`))
+    : []
 
   const totalBudgeted = Array.from(effectiveBudgetByCat.values()).reduce((s, v) => s + v, 0)
   const expenses = transactions.filter((t) => t.amount > 0)
@@ -192,6 +225,20 @@ export default async function DashboardPage({
             </span>
           </div>
         </div>
+      )}
+
+      {/* Month-end sweep prompt */}
+      {sweepCandidates.length > 0 && (
+        <SweepPrompt
+          candidates={sweepCandidates.map((c) => ({
+            id: c.id,
+            name: c.name,
+            color: c.color,
+            leftover: c.leftover,
+            goal: { id: c.goal.id, name: c.goal.name, emoji: c.goal.emoji },
+          }))}
+          period={prevPeriodId}
+        />
       )}
 
       {/* Getting-started checklist (new users) */}

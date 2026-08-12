@@ -14,8 +14,9 @@ import {
 import { toast } from 'sonner'
 import {
   Download, ChevronLeft, ChevronRight, Search,
-  Plus, ArrowLeftRight, Trash2, Tag, StickyNote,
+  Plus, ArrowLeftRight, Trash2, Tag, StickyNote, AlertTriangle, Sparkles,
 } from 'lucide-react'
+import { guessCategory } from '@/lib/categorize'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Separator } from '@/components/ui/separator'
 import { Badge } from '@/components/ui/badge'
@@ -43,8 +44,19 @@ type Transaction = {
   categoryColor: string | null
 }
 
-type Category = { id: string; name: string; color: string }
+type Category = { id: string; name: string; color: string; keywords?: string[] }
 type Month = { value: string; label: string }
+type CategoryBudget = {
+  id: string
+  name: string
+  color: string
+  budget: number
+  spent: number
+  remaining: number
+  pct: number
+  overBudget: boolean
+  nearBudget: boolean
+}
 
 function AddTransactionDialog({
   open,
@@ -236,6 +248,7 @@ export function TransactionList({
   uncategorizedCount,
   rangeFrom,
   rangeTo,
+  categoryBudgets,
 }: {
   transactions: Transaction[]
   categories: Category[]
@@ -250,6 +263,7 @@ export function TransactionList({
   uncategorizedCount: number
   rangeFrom?: string
   rangeTo?: string
+  categoryBudgets: CategoryBudget[]
 }) {
   const router = useRouter()
   const pathname = usePathname()
@@ -464,6 +478,55 @@ export function TransactionList({
         </div>
       )}
 
+      {/* Overspend alerts — same threshold logic as the dashboard */}
+      {categoryBudgets.some((c) => c.overBudget || c.nearBudget) && (
+        <div className="space-y-1.5">
+          {categoryBudgets.filter((c) => c.overBudget || c.nearBudget).map((c) => (
+            <div
+              key={c.id}
+              className={cn(
+                'flex items-center gap-2 px-4 py-2 rounded-lg text-sm border cursor-pointer',
+                c.overBudget
+                  ? 'bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800 text-red-800 dark:text-red-300'
+                  : 'bg-yellow-50 dark:bg-yellow-950/30 border-yellow-200 dark:border-yellow-800 text-yellow-800 dark:text-yellow-300',
+              )}
+              onClick={() => router.push(`${pathname}?${buildParams({ categoryId: c.id })}`)}
+            >
+              <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+              <span className="font-medium">
+                {c.overBudget
+                  ? `${c.name}: over budget by ${fmt(c.spent - c.budget)}`
+                  : `${c.name}: ${Math.round(c.pct)}% of budget used (${fmt(c.remaining)} left)`}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Remaining-budget strip */}
+      {categoryBudgets.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {categoryBudgets.map((c) => (
+            <button
+              key={c.id}
+              onClick={() => router.push(`${pathname}?${buildParams({ categoryId: c.id })}`)}
+              className={cn(
+                'flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs transition-colors',
+                c.overBudget
+                  ? 'border-red-300 dark:border-red-800 bg-red-50 dark:bg-red-950/20'
+                  : 'border-border bg-card hover:bg-accent',
+              )}
+            >
+              <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ backgroundColor: c.color }} />
+              <span className="font-medium">{c.name}</span>
+              <span className={cn('tabular-nums', c.overBudget ? 'text-red-600 dark:text-red-400' : 'text-muted-foreground')}>
+                {c.remaining >= 0 ? `${fmt(c.remaining)} left` : `${fmt(Math.abs(c.remaining))} over`}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* Summary */}
       <div className="flex flex-wrap gap-4 text-sm text-muted-foreground items-center">
         <span>{total} transactions</span>
@@ -537,6 +600,21 @@ export function TransactionList({
                   </div>
 
                   <div className="flex items-center gap-2 shrink-0">
+                    {!txn.categoryId && !txn.isTransfer && (() => {
+                      const suggestedId = guessCategory(txn.name, txn.merchantName, categories.map((c) => ({ id: c.id, name: c.name, keywords: c.keywords ?? [] })))
+                      const suggested = suggestedId ? categories.find((c) => c.id === suggestedId) : null
+                      if (!suggested) return null
+                      return (
+                        <button
+                          onClick={() => handleCategoryChange(txn.id, suggested.id)}
+                          className="hidden sm:flex items-center gap-1 h-7 px-2 rounded-md border border-dashed text-xs text-muted-foreground hover:text-foreground hover:border-primary transition-colors shrink-0"
+                          title={`Suggested: ${suggested.name}`}
+                        >
+                          <Sparkles className="h-3 w-3 shrink-0" style={{ color: suggested.color }} />
+                          {suggested.name}?
+                        </button>
+                      )
+                    })()}
                     <Select
                       value={txn.categoryId ?? 'none'}
                       onValueChange={(v: string | null) => v !== null && handleCategoryChange(txn.id, v)}

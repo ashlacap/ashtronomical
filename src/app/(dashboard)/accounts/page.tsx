@@ -3,7 +3,6 @@ import { db } from '@/lib/db'
 import { format } from 'date-fns'
 import { disconnectAccount } from '@/app/actions/plaid'
 import { PlaidLinkButton } from '@/components/PlaidLinkButton'
-import { SyncButton } from '@/components/SyncButton'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
@@ -50,7 +49,6 @@ export default async function AccountsPage() {
           <p className="text-muted-foreground text-sm">Bank accounts, assets, and your net worth.</p>
         </div>
         <div className="flex gap-2">
-          {bankAccounts.length > 0 && <SyncButton label="Sync all" />}
           <PlaidLinkButton />
         </div>
       </div>
