@@ -6,6 +6,7 @@ import { plaidClient } from '@/lib/plaid'
 import { db } from '@/lib/db'
 import { requireAuth } from '@/lib/session'
 import { categorizeTransactions } from '@/lib/ai-categorize'
+import { guessIsTransfer } from '@/lib/categorize'
 import { encryptSecret, decryptSecret } from '@/lib/crypto'
 
 export async function createLinkToken(): Promise<string> {
@@ -185,6 +186,11 @@ async function syncTransactionsForAccount(
           date: new Date(txn.date),
           pending: txn.pending,
           categoryId,
+          // Auto-flag likely self-transfers (e.g. "FUNDS TRANSFER" between a
+          // user's own accounts) so they never count toward spend to begin
+          // with. Only set on creation — never overrides a user's manual
+          // unmark-as-transfer choice on an existing row.
+          isTransfer: guessIsTransfer(txn.name, txn.merchant_name),
         },
       })
       added++

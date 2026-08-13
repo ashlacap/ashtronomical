@@ -1,5 +1,26 @@
 export type CategoryMatch = { categoryId: string; score: number }
 
+// Patterns that almost always mean "moving money between my own accounts,"
+// not real spending or income — e.g. shuttling funds between two checking
+// accounts at the same bank. Deliberately narrow (Zelle/Venmo/etc. payments
+// to other people are excluded) to avoid mis-flagging real transactions.
+const TRANSFER_PATTERNS = [
+  'funds transfer',
+  'account transfer',
+  'internal transfer',
+  'online transfer',
+  'transfer to savings',
+  'transfer from savings',
+  'transfer to checking',
+  'transfer from checking',
+]
+
+/** True if a transaction's name/merchant strongly suggests a self-transfer between the user's own accounts. */
+export function guessIsTransfer(transactionName: string, merchantName: string | null | undefined): boolean {
+  const haystack = `${transactionName} ${merchantName ?? ''}`.toLowerCase()
+  return TRANSFER_PATTERNS.some((p) => haystack.includes(p))
+}
+
 const DEFAULT_KEYWORD_MAP: Record<string, string[]> = {
   Housing: ['rent', 'mortgage', 'hoa', 'property'],
   Groceries: ['grocery', 'groceries', 'whole foods', 'trader joe', 'kroger', 'safeway', 'walmart', 'target', 'costco', 'aldi', 'publix', 'wegmans'],

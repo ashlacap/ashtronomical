@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { plaidClient } from '@/lib/plaid'
 import { categorizeTransactions } from '@/lib/ai-categorize'
+import { guessIsTransfer } from '@/lib/categorize'
 import { decryptSecret } from '@/lib/crypto'
 
 export async function POST(req: NextRequest) {
@@ -76,6 +77,9 @@ export async function POST(req: NextRequest) {
           date: new Date(txn.date),
           pending: txn.pending,
           categoryId,
+          // See src/app/actions/plaid.ts — same auto-transfer detection,
+          // only applied on creation so it never overrides a manual edit.
+          isTransfer: guessIsTransfer(txn.name, txn.merchant_name),
         },
       })
     }
