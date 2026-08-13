@@ -21,17 +21,33 @@ export async function createLinkToken(): Promise<string> {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? process.env.APP_URL
   const webhookUrl = appUrl ? `${appUrl.replace(/\/$/, '')}/api/plaid/webhook` : undefined
 
-  const response = await plaidClient.linkTokenCreate({
+  const baseParams = {
     user: { client_user_id: session.userId },
     client_name: 'Ashtronomical',
     products: [Products.Transactions],
     language: 'en',
     country_codes: [CountryCode.Us],
-    ...(redirectUri ? { redirect_uri: redirectUri } : {}),
     ...(webhookUrl ? { webhook: webhookUrl } : {}),
-  })
+  }
 
-  return response.data.link_token
+  try {
+    const response = await plaidClient.linkTokenCreate({
+      ...baseParams,
+      ...(redirectUri ? { redirect_uri: redirectUri } : {}),
+    })
+    return response.data.link_token
+  } catch (err) {
+    // A misregistered redirect_uri (mismatched with the Plaid dashboard)
+    // makes Plaid reject the whole request. Retry without it rather than
+    // breaking bank linking entirely — OAuth banks just won't work until
+    // the mismatch is fixed, but everything else still can.
+    if (redirectUri) {
+      console.error('linkTokenCreate failed with redirect_uri set, retrying without it:', err)
+      const response = await plaidClient.linkTokenCreate(baseParams)
+      return response.data.link_token
+    }
+    throw err
+  }
 }
 
 export async function exchangeToken(
