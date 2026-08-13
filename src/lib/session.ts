@@ -7,6 +7,11 @@ export type SessionPayload = {
   userId: string
   onboardingComplete: boolean
   expiresAt: Date
+  // User ids this browser has already logged into (password-verified) during
+  // this session's lifetime — lets household members switch between each
+  // other's accounts without re-entering a password each time. Always
+  // includes at least userId itself.
+  unlockedUserIds?: string[]
 }
 
 const SESSION_COOKIE = 'session'
@@ -19,7 +24,12 @@ function getKey() {
 }
 
 export async function encrypt(payload: SessionPayload): Promise<string> {
-  return new SignJWT({ userId: payload.userId, onboardingComplete: payload.onboardingComplete, expiresAt: payload.expiresAt })
+  return new SignJWT({
+    userId: payload.userId,
+    onboardingComplete: payload.onboardingComplete,
+    expiresAt: payload.expiresAt,
+    unlockedUserIds: payload.unlockedUserIds ?? [payload.userId],
+  })
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
     .setExpirationTime('7d')
@@ -36,9 +46,14 @@ export async function decrypt(token: string | undefined): Promise<SessionPayload
   }
 }
 
-export async function createSession(userId: string, onboardingComplete = false): Promise<void> {
+export async function createSession(
+  userId: string,
+  onboardingComplete = false,
+  unlockedUserIds?: string[],
+): Promise<void> {
   const expiresAt = new Date(Date.now() + SESSION_DURATION_MS)
-  const token = await encrypt({ userId, onboardingComplete, expiresAt })
+  const merged = Array.from(new Set([...(unlockedUserIds ?? []), userId]))
+  const token = await encrypt({ userId, onboardingComplete, expiresAt, unlockedUserIds: merged })
   const cookieStore = await cookies()
   cookieStore.set(SESSION_COOKIE, token, {
     httpOnly: true,
@@ -55,7 +70,12 @@ export async function updateSession(): Promise<void> {
   const session = await decrypt(token)
   if (!session) return
   const expiresAt = new Date(Date.now() + SESSION_DURATION_MS)
-  const newToken = await encrypt({ userId: session.userId, onboardingComplete: session.onboardingComplete, expiresAt })
+  const newToken = await encrypt({
+    userId: session.userId,
+    onboardingComplete: session.onboardingComplete,
+    expiresAt,
+    unlockedUserIds: session.unlockedUserIds,
+  })
   cookieStore.set(SESSION_COOKIE, newToken, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',

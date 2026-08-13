@@ -6,12 +6,14 @@ import { UserMenu } from '@/components/UserMenu'
 import { NotificationBell } from '@/components/NotificationBell'
 import { CurrencyProvider } from '@/components/CurrencyProvider'
 import { isAdmin } from '@/lib/admin'
+import { getSwitchableAccounts } from '@/app/actions/auth'
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const session = await requireAuth()
-  const [user, admin] = await Promise.all([
+  const [user, admin, switchableAccounts] = await Promise.all([
     db.user.findUnique({ where: { id: session.userId }, select: { name: true, currency: true } }),
     isAdmin(session.userId),
+    getSwitchableAccounts(),
   ])
   const userName = user?.name ?? ''
   const currency = user?.currency ?? 'USD'
@@ -35,7 +37,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
             </div>
             <div className="flex items-center gap-1.5">
               <NotificationBell />
-              <UserMenu initials={initials} userName={userName} isAdmin={admin} />
+              <UserMenu initials={initials} userName={userName} isAdmin={admin} switchableAccounts={switchableAccounts} />
             </div>
           </header>
 

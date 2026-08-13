@@ -17,6 +17,7 @@ model User {
   password           String
   onboardingComplete Boolean             @default(false)
   emailVerified      Boolean             @default(false)
+  isAdmin            Boolean             @default(false)
   weeklyDigest       Boolean             @default(true)
   emailAlerts        Boolean             @default(true)
   theme              String              @default("system")

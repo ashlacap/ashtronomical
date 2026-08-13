@@ -5,7 +5,7 @@ import { headers } from 'next/headers'
 import { z } from 'zod'
 import bcrypt from 'bcryptjs'
 import { db } from '@/lib/db'
-import { createSession, deleteSession } from '@/lib/session'
+import { createSession, deleteSession, requireAuth } from '@/lib/session'
 import { checkRateLimit, recordFailure, clearRateLimit } from '@/lib/rate-limit'
 import { sendEmail, emailLayout } from '@/lib/email'
 import { createVerificationToken, appUrl } from '@/lib/tokens'
@@ -102,4 +102,87 @@ export async function login(state: AuthState, formData: FormData): Promise<AuthS
 export async function logout(): Promise<void> {
   await deleteSession()
   redirect('/login')
+}
+
+export type SwitchableAccount = {
+  id: string
+  name: string | null
+  email: string
+  unlocked: boolean
+  active: boolean
+}
+
+/**
+ * Other household members the current user can switch into. "unlocked" means
+ * this browser session has already password-verified that account, so
+ * switching to it won't prompt again.
+ */
+export async function getSwitchableAccounts(): Promise<SwitchableAccount[]> {
+  const session = await requireAuth()
+  const me = await db.user.findUnique({ where: { id: session.userId }, select: { householdId: true } })
+  if (!me?.householdId) return []
+
+  const members = await db.user.findMany({
+    where: { householdId: me.householdId },
+    select: { id: true, name: true, email: true },
+    orderBy: { name: 'asc' },
+  })
+
+  const unlocked = new Set(session.unlockedUserIds ?? [session.userId])
+  return members.map((m) => ({
+    id: m.id,
+    name: m.name,
+    email: m.email,
+    unlocked: unlocked.has(m.id),
+    active: m.id === session.userId,
+  }))
+}
+
+export type SwitchAccountState = { error?: string } | undefined
+
+/**
+ * Switches the active session to another household member. If that account
+ * was already unlocked this session (a prior successful switch or the
+ * original login), no password is needed. Otherwise password is required and,
+ * on success, the account joins the unlocked set for the rest of the session.
+ */
+export async function switchAccount(
+  state: SwitchAccountState,
+  formData: FormData,
+): Promise<SwitchAccountState> {
+  const session = await requireAuth()
+  const targetUserId = String(formData.get('userId') ?? '')
+  const password = String(formData.get('password') ?? '')
+  if (!targetUserId) return { error: 'No account selected.' }
+
+  const me = await db.user.findUnique({ where: { id: session.userId }, select: { householdId: true } })
+  const target = await db.user.findUnique({ where: { id: targetUserId } })
+
+  // Re-verify household membership live — never trust the client or a stale
+  // JWT claim for who's switchable.
+  if (!target || !me?.householdId || target.householdId !== me.householdId) {
+    return { error: 'That account is not available to switch to.' }
+  }
+
+  const unlocked = new Set(session.unlockedUserIds ?? [session.userId])
+  if (!unlocked.has(target.id)) {
+    if (!password) return { error: 'PASSWORD_REQUIRED' }
+    const hdrs = await headers()
+    const ip = hdrs.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown'
+    const rlKey = `switch:${ip}:${target.email.toLowerCase()}`
+    const limit = checkRateLimit(rlKey)
+    if (!limit.allowed) {
+      const mins = Math.ceil((limit.retryAfterSeconds ?? 900) / 60)
+      return { error: `Too many attempts. Try again in ${mins} minute${mins !== 1 ? 's' : ''}.` }
+    }
+    if (!(await bcrypt.compare(password, target.password))) {
+      recordFailure(rlKey)
+      return { error: 'Incorrect password.' }
+    }
+    clearRateLimit(rlKey)
+    unlocked.add(target.id)
+  }
+
+  await createSession(target.id, target.onboardingComplete, Array.from(unlocked))
+  redirect(target.onboardingComplete ? target.defaultPage : '/onboarding')
 }
