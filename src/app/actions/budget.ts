@@ -8,6 +8,7 @@ import { requireAuth } from '@/lib/session'
 const BudgetSchema = z.object({
   monthlyIncome: z.coerce.number().positive({ error: 'Monthly income must be a positive number.' }),
   previousIncome: z.coerce.number().optional(),
+  adjustCategories: z.coerce.boolean().optional(),
 })
 
 export type BudgetState = {
@@ -22,12 +23,13 @@ export async function upsertBudget(state: BudgetState, formData: FormData): Prom
   const result = BudgetSchema.safeParse({
     monthlyIncome: formData.get('monthlyIncome'),
     previousIncome: formData.get('previousIncome'),
+    adjustCategories: formData.get('adjustCategories'),
   })
   if (!result.success) {
     return { errors: result.error.flatten().fieldErrors as Record<string, string[]> }
   }
 
-  const { monthlyIncome, previousIncome } = result.data
+  const { monthlyIncome, previousIncome, adjustCategories } = result.data
   const now = new Date()
 
   await db.budget.upsert({
@@ -47,8 +49,9 @@ export async function upsertBudget(state: BudgetState, formData: FormData): Prom
     },
   })
 
-  // Scale all category budgets proportionally if income changed
-  if (previousIncome && previousIncome > 0 && monthlyIncome !== previousIncome) {
+  // Scale all category budgets proportionally if income changed — opt-in,
+  // since not everyone wants their categories auto-rebalanced.
+  if (adjustCategories && previousIncome && previousIncome > 0 && monthlyIncome !== previousIncome) {
     const ratio = monthlyIncome / previousIncome
     const categories = await db.category.findMany({
       where: { userId: session.userId },

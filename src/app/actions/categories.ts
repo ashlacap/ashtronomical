@@ -141,6 +141,49 @@ export async function applyPlan(planId: PlanId, monthlyIncome: number): Promise<
   return { success: true, created: result.count }
 }
 
+/**
+ * Replaces all of a user's categories with a fresh preset plan — for
+ * re-choosing an allocation split later, not just the empty-state picker.
+ * Existing categories are deleted (their transactions fall back to
+ * Uncategorized, same as deleting one category individually) and the new
+ * plan's categories are created in their place.
+ */
+export async function resetToPlan(planId: PlanId, monthlyIncome: number): Promise<{ success: boolean; created: number }> {
+  const session = await requireAuth()
+  const plan = PLANS[planId]
+  if (!plan || monthlyIncome <= 0) return { success: false, created: 0 }
+
+  const now = new Date()
+
+  await db.transaction.updateMany({
+    where: { userId: session.userId },
+    data: { categoryId: null },
+  })
+  await db.category.deleteMany({ where: { userId: session.userId } })
+
+  await db.budget.upsert({
+    where: { userId_month_year: { userId: session.userId, month: now.getMonth() + 1, year: now.getFullYear() } },
+    update: { monthlyIncome },
+    create: { userId: session.userId, monthlyIncome, month: now.getMonth() + 1, year: now.getFullYear() },
+  })
+
+  const result = await db.category.createMany({
+    data: plan.categories.map((cat) => ({
+      userId: session.userId,
+      name: cat.name,
+      color: cat.color,
+      keywords: [...cat.keywords],
+      budgetAmount: Math.round((cat.pct / 100) * monthlyIncome * 100) / 100,
+      rollover: false,
+    })),
+  })
+
+  revalidatePath('/budget')
+  revalidatePath('/dashboard')
+  revalidatePath('/transactions')
+  return { success: true, created: result.count }
+}
+
 export async function deleteCategory(categoryId: string): Promise<void> {
   const session = await requireAuth()
   const cat = await db.category.findFirst({ where: { id: categoryId, userId: session.userId } })

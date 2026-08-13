@@ -2,9 +2,9 @@
 
 import { useActionState, useState, useEffect } from 'react'
 import { toast } from 'sonner'
-import { Plus, Pencil, Trash2, RefreshCw, PiggyBank } from 'lucide-react'
+import { Plus, Pencil, Trash2, RefreshCw, PiggyBank, SlidersHorizontal } from 'lucide-react'
 import { upsertBudget } from '@/app/actions/budget'
-import { createCategory, updateCategory, deleteCategory } from '@/app/actions/categories'
+import { createCategory, updateCategory, deleteCategory, applyPlan, resetToPlan } from '@/app/actions/categories'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -171,6 +171,42 @@ function CategoryDialog({
   )
 }
 
+function ResetPlanSection({ suggestedIncome, onCustom }: { suggestedIncome: number; onCustom: () => void }) {
+  const [open, setOpen] = useState(false)
+
+  return (
+    <>
+      <div className="text-center py-2">
+        <p className="text-xs text-muted-foreground">
+          Want a different starting point?
+        </p>
+        <Button type="button" variant="outline" size="sm" className="mt-2 gap-1.5" onClick={() => setOpen(true)}>
+          <SlidersHorizontal className="h-3.5 w-3.5" />
+          Re-choose allocation split
+        </Button>
+      </div>
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Re-choose allocation split</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            This replaces all of your current categories and budgets with the plan you pick below.
+            Transactions already assigned to a category will go back to Uncategorized.
+          </p>
+          <PlanPicker
+            suggestedIncome={suggestedIncome}
+            onCustom={() => { setOpen(false); onCustom() }}
+            onApply={resetToPlan}
+            successVerb="Replaced with"
+          />
+        </DialogContent>
+      </Dialog>
+    </>
+  )
+}
+
 export function BudgetClient({
   initialIncome,
   initialCategories,
@@ -207,27 +243,39 @@ export function BudgetClient({
           <CardDescription>Your total take-home income for the month.</CardDescription>
         </CardHeader>
         <CardContent>
-          <form action={incomeAction} className="flex items-end gap-3">
+          <form action={incomeAction} className="space-y-3">
             <input type="hidden" name="previousIncome" value={initialIncome} />
-            <div className="space-y-1.5 flex-1 max-w-xs">
-              <Label htmlFor="monthlyIncome">Amount</Label>
-              <Input
-                id="monthlyIncome"
-                name="monthlyIncome"
-                type="number"
-                min="0"
-                step="0.01"
-                defaultValue={initialIncome}
-                required
-              />
+            <div className="flex items-end gap-3">
+              <div className="space-y-1.5 flex-1 max-w-xs">
+                <Label htmlFor="monthlyIncome">Amount</Label>
+                <Input
+                  id="monthlyIncome"
+                  name="monthlyIncome"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  defaultValue={initialIncome}
+                  required
+                />
+              </div>
+              <Button type="submit" disabled={incomePending}>
+                {incomePending ? 'Saving…' : 'Update'}
+              </Button>
             </div>
-            <Button type="submit" disabled={incomePending}>
-              {incomePending ? 'Saving…' : 'Update'}
-            </Button>
+            <div className="flex items-center gap-2">
+              <input
+                id="adjustCategories"
+                name="adjustCategories"
+                type="checkbox"
+                value="true"
+                defaultChecked
+                className="h-4 w-4 rounded border cursor-pointer"
+              />
+              <Label htmlFor="adjustCategories" className="cursor-pointer font-normal text-xs text-muted-foreground">
+                Proportionally adjust all category budgets when income changes
+              </Label>
+            </div>
           </form>
-          <p className="text-xs text-muted-foreground mt-2">
-            Changing income will proportionally adjust all category budgets.
-          </p>
         </CardContent>
       </Card>
 
@@ -302,10 +350,18 @@ export function BudgetClient({
             <PlanPicker
               suggestedIncome={initialIncome}
               onCustom={() => { setEditCategory(null); setDialogOpen(true) }}
+              onApply={applyPlan}
             />
           )}
         </CardContent>
       </Card>
+
+      {initialCategories.length > 0 && (
+        <ResetPlanSection
+          suggestedIncome={initialIncome}
+          onCustom={() => { setEditCategory(null); setDialogOpen(true) }}
+        />
+      )}
 
       <CategoryDialog
         open={dialogOpen}

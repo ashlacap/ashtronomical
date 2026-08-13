@@ -3,7 +3,6 @@
 import { useState, useTransition } from 'react'
 import { toast } from 'sonner'
 import { SlidersHorizontal, Sparkles } from 'lucide-react'
-import { applyPlan } from '@/app/actions/categories'
 import { PLANS, type PlanId } from '@/lib/plans'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -11,13 +10,22 @@ import { Label } from '@/components/ui/label'
 import { cn } from '@/lib/utils'
 
 /**
- * Empty-state on Allocations when a user has zero categories — whether they
- * skipped onboarding, chose "set it up myself" there, or joined a household
- * without going through it. Offers the same preset plans as onboarding, or a
- * custom path via the existing "Add Category" button (passed in as a prop
- * so this component doesn't need to know about the category dialog).
+ * Plan-picker UI shared by two places on Allocations: the empty-state (zero
+ * categories yet) and the "reset allocation split" flow further down the
+ * page. The two differ only in which server action they call and what
+ * happens to existing categories, so that's passed in rather than forked.
  */
-export function PlanPicker({ suggestedIncome, onCustom }: { suggestedIncome: number; onCustom: () => void }) {
+export function PlanPicker({
+  suggestedIncome,
+  onCustom,
+  onApply,
+  successVerb = 'Added',
+}: {
+  suggestedIncome: number
+  onCustom: () => void
+  onApply: (planId: PlanId, income: number) => Promise<{ success: boolean; created: number }>
+  successVerb?: string
+}) {
   const [selectedPlan, setSelectedPlan] = useState<PlanId | ''>('')
   const [income, setIncome] = useState(suggestedIncome > 0 ? String(suggestedIncome) : '')
   const [pending, startTransition] = useTransition()
@@ -26,9 +34,9 @@ export function PlanPicker({ suggestedIncome, onCustom }: { suggestedIncome: num
     const parsedIncome = parseFloat(income)
     if (!selectedPlan || !parsedIncome || parsedIncome <= 0) return
     startTransition(async () => {
-      const result = await applyPlan(selectedPlan, parsedIncome)
+      const result = await onApply(selectedPlan, parsedIncome)
       if (result.success) {
-        toast.success(`Added ${result.created} categories from ${PLANS[selectedPlan].name}.`)
+        toast.success(`${successVerb} ${result.created} categories from ${PLANS[selectedPlan].name}.`)
       } else {
         toast.error('Could not apply that plan.')
       }
