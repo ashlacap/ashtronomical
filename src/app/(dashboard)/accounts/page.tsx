@@ -17,6 +17,11 @@ import type { BankAccount, PlaidAccount } from '@/generated/prisma/client'
 
 type BankAccountWithAccounts = BankAccount & { plaidAccounts: PlaidAccount[] }
 
+// Linking a new bank can run a full historical transaction sync inside
+// exchangeToken before it responds — give it more room than the platform
+// default so a first-time sync of a large account doesn't get killed mid-write.
+export const maxDuration = 60
+
 export default async function AccountsPage() {
   const session = await requireAuth()
   const { currency } = await getUserSettings()

@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { db } from '@/lib/db'
 import { requireAuth } from '@/lib/session'
+import { PLANS, type PlanId } from '@/lib/plans'
 
 const CategorySchema = z.object({
   name: z.string().min(1, { error: 'Name is required.' }).trim(),
@@ -101,6 +102,43 @@ export async function updateCategory(
   revalidatePath('/budget')
   revalidatePath('/dashboard')
   return { success: true }
+}
+
+/**
+ * Applies a preset budget plan (e.g. 50/30/20) as a starting set of
+ * categories, for anyone who reached Allocations with none yet — whether
+ * they skipped onboarding, chose "set it up myself" then changed their mind,
+ * or joined a household without going through it. Skips any category name
+ * that already exists rather than erroring, so it's safe to apply on top of
+ * a few categories someone already added by hand.
+ */
+export async function applyPlan(planId: PlanId, monthlyIncome: number): Promise<{ success: boolean; created: number }> {
+  const session = await requireAuth()
+  const plan = PLANS[planId]
+  if (!plan || monthlyIncome <= 0) return { success: false, created: 0 }
+
+  const now = new Date()
+  await db.budget.upsert({
+    where: { userId_month_year: { userId: session.userId, month: now.getMonth() + 1, year: now.getFullYear() } },
+    update: { monthlyIncome },
+    create: { userId: session.userId, monthlyIncome, month: now.getMonth() + 1, year: now.getFullYear() },
+  })
+
+  const result = await db.category.createMany({
+    data: plan.categories.map((cat) => ({
+      userId: session.userId,
+      name: cat.name,
+      color: cat.color,
+      keywords: [...cat.keywords],
+      budgetAmount: Math.round((cat.pct / 100) * monthlyIncome * 100) / 100,
+      rollover: false,
+    })),
+    skipDuplicates: true,
+  })
+
+  revalidatePath('/budget')
+  revalidatePath('/dashboard')
+  return { success: true, created: result.count }
 }
 
 export async function deleteCategory(categoryId: string): Promise<void> {

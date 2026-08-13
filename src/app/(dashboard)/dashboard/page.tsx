@@ -2,7 +2,7 @@ import { requireAuth } from '@/lib/session'
 import { db } from '@/lib/db'
 import { format, subMonths } from 'date-fns'
 import Link from 'next/link'
-import { ArrowRight, AlertTriangle, Calendar, Zap, Flame, Vault, Orbit, Tag, TrendingUp, ShieldCheck, CheckCircle2, Circle } from 'lucide-react'
+import { ArrowRight, AlertTriangle, Calendar, Zap, Flame, Vault, Orbit, Tag, TrendingUp, ShieldCheck, CheckCircle2, Circle, Landmark } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -25,6 +25,10 @@ import { getDebtTotals, NOT_EXCLUDED } from '@/lib/finance'
 import type { Category, Transaction } from '@/generated/prisma/client'
 
 type TxnWithCat = Transaction & { category: Category | null }
+
+// See accounts/page.tsx — PlaidLinkButton here can also trigger a full
+// historical sync inside exchangeToken on first link.
+export const maxDuration = 60
 
 export default async function DashboardPage({
   searchParams,
@@ -79,7 +83,7 @@ export default async function DashboardPage({
         where: { userId: session.userId, date: { gte: threeMonthsAgo }, pending: false, isTransfer: false, amount: { gt: 0 }, ...NOT_EXCLUDED },
         select: { name: true, merchantName: true, amount: true, date: true },
       }),
-      db.bankAccount.findMany({ where: { userId: session.userId } }),
+      db.bankAccount.findMany({ where: { userId: session.userId }, include: { plaidAccounts: true } }),
       db.savingsGoal.findMany({ where: { userId: session.userId }, orderBy: { createdAt: 'desc' }, take: 3 }),
       db.transaction.findMany({
         where: { userId: session.userId, date: { gte: prevPeriodStart, lte: prevPeriodEnd }, pending: false, isTransfer: false, amount: { gt: 0 }, ...NOT_EXCLUDED },
@@ -95,6 +99,12 @@ export default async function DashboardPage({
     ])
 
   const totalDebt = debtTotals.totalDebt
+
+  // Bank balance: depository accounts only, minus anything excluded from tracking.
+  const allPlaidAccounts = bankAccounts.flatMap((b) => b.plaidAccounts)
+  const bankBalance = allPlaidAccounts
+    .filter((a) => a.type === 'depository' && !a.excluded)
+    .reduce((sum, a) => sum + (a.currentBalance ?? 0), 0)
 
   // Rollover
   const prevMonthSpendByCat = new Map<string, number>()
@@ -375,6 +385,7 @@ export default async function DashboardPage({
       {/* Row 2: stat cards + Sector breakdown */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="grid grid-cols-2 gap-3">
+          <DarkStatCard label="Bank Balance" amount={bankBalance} sub={hasBank ? 'across connected accounts' : 'connect a bank to track'} Icon={Landmark} />
           <DarkStatCard label="Monthly Income" amount={income} sub="set in Fuel Allocation" Icon={Zap} />
           <DarkStatCard label="Total Spent" amount={totalSpent} sub={`of ${fmt(totalBudgeted)} budgeted`} Icon={Flame} />
           <DarkStatCard label="Remaining" amount={remaining} sub={remaining < 0 ? 'over budget' : 'left this period'} Icon={Vault} />

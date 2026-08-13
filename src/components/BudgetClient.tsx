@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Separator } from '@/components/ui/separator'
 import { Badge } from '@/components/ui/badge'
 import { useCurrency } from '@/components/CurrencyProvider'
+import { PlanPicker } from '@/components/PlanPicker'
 
 export type Category = {
   id: string
@@ -298,9 +299,10 @@ export function BudgetClient({
             </div>
           ))}
           {initialCategories.length === 0 && (
-            <p className="text-sm text-muted-foreground text-center py-6">
-              No categories yet. Add one to start budgeting.
-            </p>
+            <PlanPicker
+              suggestedIncome={initialIncome}
+              onCustom={() => { setEditCategory(null); setDialogOpen(true) }}
+            />
           )}
         </CardContent>
       </Card>
