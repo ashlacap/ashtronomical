@@ -1,5 +1,6 @@
 import 'server-only'
 import { db } from '@/lib/db'
+import type { Prisma } from '@/generated/prisma/client'
 
 export type PlaidDebtAccount = {
   id: string
@@ -13,10 +14,20 @@ export type PlaidDebtAccount = {
 // Plaid account types that represent money owed, not money held.
 const DEBT_TYPES = ['credit', 'loan']
 
+/**
+ * Prisma `where` fragment for Transaction queries that excludes transactions
+ * belonging to a Plaid sub-account the user has hidden from tracking. Manual
+ * transactions (plaidAccountId: null) always pass through untouched.
+ * Usage: db.transaction.findMany({ where: { userId, ...NOT_EXCLUDED, ... } })
+ */
+export const NOT_EXCLUDED: Prisma.TransactionWhereInput = {
+  OR: [{ plaidAccountId: null }, { plaidAccount: { excluded: false } }],
+}
+
 /** Credit cards and loans from connected banks — these are debts, not assets. */
 export async function getPlaidDebtAccounts(userId: string): Promise<PlaidDebtAccount[]> {
   const accounts = await db.plaidAccount.findMany({
-    where: { bankAccount: { userId }, type: { in: DEBT_TYPES } },
+    where: { bankAccount: { userId }, type: { in: DEBT_TYPES }, excluded: false },
     select: { id: true, plaidAccountId: true, name: true, mask: true, currentBalance: true, type: true },
   })
   return accounts.map((a) => ({

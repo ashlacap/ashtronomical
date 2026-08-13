@@ -5,6 +5,7 @@ import { TransactionList } from '@/components/TransactionList'
 import { RecurringManager } from '@/components/RecurringManager'
 import { ImportCsv } from '@/components/ImportCsv'
 import { getUserSettings } from '@/lib/user-settings'
+import { NOT_EXCLUDED } from '@/lib/finance'
 
 const PAGE_SIZE = 25
 
@@ -39,14 +40,17 @@ export default async function TransactionsPage({
     userId: session.userId,
     date: { gte: rangeStart, lte: rangeEnd },
     ...categoryFilter,
-    ...(search
-      ? {
-          OR: [
-            { name: { contains: search, mode: 'insensitive' as const } },
-            { merchantName: { contains: search, mode: 'insensitive' as const } },
-          ],
-        }
-      : {}),
+    AND: [
+      NOT_EXCLUDED,
+      ...(search
+        ? [{
+            OR: [
+              { name: { contains: search, mode: 'insensitive' as const } },
+              { merchantName: { contains: search, mode: 'insensitive' as const } },
+            ],
+          }]
+        : []),
+    ],
   }
 
   const settings = await getUserSettings()
@@ -63,7 +67,7 @@ export default async function TransactionsPage({
     db.category.findMany({ where: { userId: session.userId }, orderBy: { name: 'asc' } }),
     // Pending in range (for display)
     db.transaction.findMany({
-      where: { userId: session.userId, date: { gte: rangeStart, lte: rangeEnd }, pending: true, amount: { gt: 0 } },
+      where: { userId: session.userId, date: { gte: rangeStart, lte: rangeEnd }, pending: true, amount: { gt: 0 }, ...NOT_EXCLUDED },
       select: { amount: true },
     }),
     // Uncategorized non-transfer transactions in range (expenses and credits)
@@ -74,6 +78,7 @@ export default async function TransactionsPage({
         categoryId: null,
         isTransfer: false,
         pending: false,
+        ...NOT_EXCLUDED,
       },
     }),
     // Recurring rules with category names
@@ -83,7 +88,7 @@ export default async function TransactionsPage({
     }),
     // All spend in range, for the remaining-budget strip (independent of filters/pagination)
     db.transaction.findMany({
-      where: { userId: session.userId, date: { gte: rangeStart, lte: rangeEnd }, pending: false, isTransfer: false, amount: { gt: 0 } },
+      where: { userId: session.userId, date: { gte: rangeStart, lte: rangeEnd }, pending: false, isTransfer: false, amount: { gt: 0 }, ...NOT_EXCLUDED },
       select: { categoryId: true, amount: true },
     }),
   ])

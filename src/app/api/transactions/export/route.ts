@@ -1,6 +1,7 @@
 import { getSession } from '@/lib/session'
 import { db } from '@/lib/db'
 import { format, startOfMonth, endOfMonth } from 'date-fns'
+import { NOT_EXCLUDED } from '@/lib/finance'
 
 export async function GET(request: Request) {
   const session = await getSession()
@@ -19,6 +20,7 @@ export async function GET(request: Request) {
       userId: session.userId,
       date: { gte: monthStart, lte: monthEnd },
       ...(categoryId ? { categoryId } : {}),
+      ...NOT_EXCLUDED,
     },
     include: { category: true },
     orderBy: { date: 'desc' },

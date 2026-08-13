@@ -4,6 +4,7 @@ import { db } from '@/lib/db'
 import { sendEmail, emailLayout } from '@/lib/email'
 import { formatCurrency } from '@/lib/currency'
 import { appUrl } from '@/lib/tokens'
+import { NOT_EXCLUDED } from '@/lib/finance'
 
 // Triggered by a scheduled job (e.g. Vercel Cron) once a week.
 // Protect with CRON_SECRET so it can't be invoked publicly.
@@ -33,11 +34,11 @@ export async function GET(req: NextRequest) {
 
     const [weekTxns, monthTxns, categories, budget] = await Promise.all([
       db.transaction.findMany({
-        where: { userId: user.id, date: { gte: weekAgo, lte: now }, pending: false, isTransfer: false, amount: { gt: 0 } },
+        where: { userId: user.id, date: { gte: weekAgo, lte: now }, pending: false, isTransfer: false, amount: { gt: 0 }, ...NOT_EXCLUDED },
         select: { amount: true },
       }),
       db.transaction.findMany({
-        where: { userId: user.id, date: { gte: monthStart, lte: monthEnd }, pending: false, isTransfer: false, amount: { gt: 0 } },
+        where: { userId: user.id, date: { gte: monthStart, lte: monthEnd }, pending: false, isTransfer: false, amount: { gt: 0 }, ...NOT_EXCLUDED },
         select: { categoryId: true, amount: true },
       }),
       db.category.findMany({ where: { userId: user.id } }),

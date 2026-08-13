@@ -4,6 +4,7 @@ import { startOfMonth, endOfMonth, differenceInCalendarMonths } from 'date-fns'
 import { db } from '@/lib/db'
 import { requireAuth } from '@/lib/session'
 import { getUserSettings } from '@/lib/user-settings'
+import { NOT_EXCLUDED } from '@/lib/finance'
 
 export type AppNotification = {
   id: string
@@ -23,12 +24,12 @@ export async function getNotifications(): Promise<AppNotification[]> {
   const [categories, transactions, goals, uncategorizedCount] = await Promise.all([
     db.category.findMany({ where: { userId: session.userId } }),
     db.transaction.findMany({
-      where: { userId: session.userId, date: { gte: monthStart, lte: monthEnd }, pending: false, isTransfer: false, amount: { gt: 0 } },
+      where: { userId: session.userId, date: { gte: monthStart, lte: monthEnd }, pending: false, isTransfer: false, amount: { gt: 0 }, ...NOT_EXCLUDED },
       select: { categoryId: true, amount: true },
     }),
     db.savingsGoal.findMany({ where: { userId: session.userId } }),
     db.transaction.count({
-      where: { userId: session.userId, date: { gte: monthStart, lte: monthEnd }, pending: false, isTransfer: false, categoryId: null },
+      where: { userId: session.userId, date: { gte: monthStart, lte: monthEnd }, pending: false, isTransfer: false, categoryId: null, ...NOT_EXCLUDED },
     }),
   ])
 

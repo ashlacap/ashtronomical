@@ -21,7 +21,7 @@ import { detectRecurringBills } from '@/lib/recurring'
 import { getUserSettings } from '@/lib/user-settings'
 import { formatCurrency } from '@/lib/currency'
 import { postDueRecurring } from '@/app/actions/recurring'
-import { getDebtTotals } from '@/lib/finance'
+import { getDebtTotals, NOT_EXCLUDED } from '@/lib/finance'
 import type { Category, Transaction } from '@/generated/prisma/client'
 
 type TxnWithCat = Transaction & { category: Category | null }
@@ -67,22 +67,22 @@ export default async function DashboardPage({
       }),
       db.category.findMany({ where: { userId: session.userId }, orderBy: { name: 'asc' } }),
       db.transaction.findMany({
-        where: { userId: session.userId, date: { gte: periodStart, lte: periodEnd }, pending: false, isTransfer: false },
+        where: { userId: session.userId, date: { gte: periodStart, lte: periodEnd }, pending: false, isTransfer: false, ...NOT_EXCLUDED },
         include: { category: true },
         orderBy: { date: 'desc' },
       }) as Promise<TxnWithCat[]>,
       db.transaction.findMany({
-        where: { userId: session.userId, date: { gte: periodStart, lte: periodEnd }, pending: true, isTransfer: false, amount: { gt: 0 } },
+        where: { userId: session.userId, date: { gte: periodStart, lte: periodEnd }, pending: true, isTransfer: false, amount: { gt: 0 }, ...NOT_EXCLUDED },
         select: { amount: true },
       }),
       db.transaction.findMany({
-        where: { userId: session.userId, date: { gte: threeMonthsAgo }, pending: false, isTransfer: false, amount: { gt: 0 } },
+        where: { userId: session.userId, date: { gte: threeMonthsAgo }, pending: false, isTransfer: false, amount: { gt: 0 }, ...NOT_EXCLUDED },
         select: { name: true, merchantName: true, amount: true, date: true },
       }),
       db.bankAccount.findMany({ where: { userId: session.userId } }),
       db.savingsGoal.findMany({ where: { userId: session.userId }, orderBy: { createdAt: 'desc' }, take: 3 }),
       db.transaction.findMany({
-        where: { userId: session.userId, date: { gte: prevPeriodStart, lte: prevPeriodEnd }, pending: false, isTransfer: false, amount: { gt: 0 } },
+        where: { userId: session.userId, date: { gte: prevPeriodStart, lte: prevPeriodEnd }, pending: false, isTransfer: false, amount: { gt: 0 }, ...NOT_EXCLUDED },
         select: { categoryId: true, amount: true },
       }),
       db.savingsGoal.aggregate({ where: { userId: session.userId }, _sum: { currentAmount: true } }),

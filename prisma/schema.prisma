@@ -115,6 +115,7 @@ model PlaidAccount {
   subtype          String?
   currentBalance   Float?
   availableBalance Float?
+  excluded         Boolean       @default(false)
   transactions     Transaction[]
 }
 

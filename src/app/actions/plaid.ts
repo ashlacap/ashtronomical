@@ -217,6 +217,7 @@ export async function disconnectAccount(bankAccountId: string): Promise<void> {
   const session = await requireAuth()
   const account = await db.bankAccount.findFirst({
     where: { id: bankAccountId, userId: session.userId },
+    include: { plaidAccounts: { select: { plaidAccountId: true } } },
   })
   if (!account) return
 
@@ -226,10 +227,41 @@ export async function disconnectAccount(bankAccountId: string): Promise<void> {
     // Proceed with local removal even if Plaid call fails
   }
 
+  // Delete this account's transaction history too — otherwise a later
+  // reconnect runs a full historical sync again and duplicates everything,
+  // since Plaid transaction IDs aren't guaranteed stable across re-links.
+  const plaidAccountIds = account.plaidAccounts.map((a) => a.plaidAccountId)
+  if (plaidAccountIds.length > 0) {
+    await db.transaction.deleteMany({
+      where: { userId: session.userId, plaidAccountId: { in: plaidAccountIds } },
+    })
+  }
+
   await db.bankAccount.delete({ where: { id: bankAccountId } })
 
   revalidatePath('/accounts')
   revalidatePath('/dashboard')
+  revalidatePath('/transactions')
+}
+
+/**
+ * Excludes/includes a single Plaid sub-account (e.g. one of two checking
+ * accounts under the same bank connection) from balance and spending totals,
+ * without disconnecting the whole bank item. The account keeps syncing so its
+ * balance stays current if it's ever re-included.
+ */
+export async function setPlaidAccountExcluded(plaidAccountRowId: string, excluded: boolean): Promise<void> {
+  const session = await requireAuth()
+  const account = await db.plaidAccount.findFirst({
+    where: { id: plaidAccountRowId, bankAccount: { userId: session.userId } },
+  })
+  if (!account) return
+
+  await db.plaidAccount.update({ where: { id: plaidAccountRowId }, data: { excluded } })
+
+  revalidatePath('/accounts')
+  revalidatePath('/dashboard')
+  revalidatePath('/transactions')
 }
 
 const BACKFILL_BATCH_SIZE = 60

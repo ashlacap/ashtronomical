@@ -2,6 +2,7 @@ import { requireAuth } from '@/lib/session'
 import { db } from '@/lib/db'
 import { format } from 'date-fns'
 import { disconnectAccount } from '@/app/actions/plaid'
+import { AccountExcludeToggle } from '@/components/AccountExcludeToggle'
 import { PlaidLinkButton } from '@/components/PlaidLinkButton'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -32,9 +33,10 @@ export default async function AccountsPage() {
   ])
 
   const allPlaidAccounts = bankAccounts.flatMap((b: BankAccountWithAccounts) => b.plaidAccounts)
-  // Only depository accounts (checking/savings) are assets.
+  // Only depository accounts (checking/savings) are assets. Excluded accounts
+  // (e.g. a sub-account someone doesn't want tracked) don't count toward net worth.
   const bankBalance = allPlaidAccounts
-    .filter((a: PlaidAccount) => a.type === 'depository')
+    .filter((a: PlaidAccount) => a.type === 'depository' && !a.excluded)
     .reduce((sum: number, a: PlaidAccount) => sum + (a.currentBalance ?? 0), 0)
   const assetsTotal = manualAssets.reduce((s, a) => s + a.value, 0)
   // Deduplicated debt: manual debts + connected cards not yet promoted to a debt.
@@ -103,33 +105,39 @@ export default async function AccountsPage() {
               <CardContent className="space-y-0">
                 {bank.plaidAccounts.map((account: PlaidAccount, i: number) => (
                   <div key={account.id}>
-                    <div className="flex items-center justify-between py-2.5">
+                    <div className={`flex items-center justify-between py-2.5 ${account.excluded ? 'opacity-50' : ''}`}>
                       <div>
                         <p className="text-sm font-medium">{account.name}</p>
                         <p className="text-xs text-muted-foreground capitalize">
                           {account.type} {account.mask ? `••••${account.mask}` : ''}
                         </p>
                       </div>
-                      <div className="text-right">
-                        {(() => {
-                          const isDebt = account.type === 'credit' || account.type === 'loan'
-                          return (
-                            <>
-                              {account.currentBalance != null && (
-                                <p className={`text-sm font-semibold ${isDebt ? 'text-red-500' : ''}`}>
-                                  {isDebt ? '−' : ''}{formatCurrency(account.currentBalance)}
-                                  {isDebt && <span className="text-xs font-normal text-muted-foreground ml-1">owed</span>}
-                                </p>
-                              )}
-                              {account.availableBalance != null && account.availableBalance !== account.currentBalance && (
-                                <p className="text-xs text-muted-foreground">
-                                  {formatCurrency(account.availableBalance)} {isDebt ? 'available credit' : 'available'}
-                                </p>
-                              )}
-                              <Badge variant="secondary" className="text-xs mt-0.5">{account.subtype ?? account.type}</Badge>
-                            </>
-                          )
-                        })()}
+                      <div className="flex items-center gap-3">
+                        <div className="text-right">
+                          {(() => {
+                            const isDebt = account.type === 'credit' || account.type === 'loan'
+                            return (
+                              <>
+                                {account.currentBalance != null && (
+                                  <p className={`text-sm font-semibold ${isDebt ? 'text-red-500' : ''}`}>
+                                    {isDebt ? '−' : ''}{formatCurrency(account.currentBalance)}
+                                    {isDebt && <span className="text-xs font-normal text-muted-foreground ml-1">owed</span>}
+                                  </p>
+                                )}
+                                {account.availableBalance != null && account.availableBalance !== account.currentBalance && (
+                                  <p className="text-xs text-muted-foreground">
+                                    {formatCurrency(account.availableBalance)} {isDebt ? 'available credit' : 'available'}
+                                  </p>
+                                )}
+                                <div className="flex items-center gap-1.5 mt-0.5 justify-end">
+                                  {account.excluded && <Badge variant="outline" className="text-xs">Excluded</Badge>}
+                                  <Badge variant="secondary" className="text-xs">{account.subtype ?? account.type}</Badge>
+                                </div>
+                              </>
+                            )
+                          })()}
+                        </div>
+                        <AccountExcludeToggle accountRowId={account.id} excluded={account.excluded} />
                       </div>
                     </div>
                     {i < bank.plaidAccounts.length - 1 && <Separator />}

@@ -2,6 +2,7 @@ import { requireAuth } from '@/lib/session'
 import { db } from '@/lib/db'
 import { EventsClient } from '@/components/EventsClient'
 import { getHouseholdMemberIds } from '@/app/actions/household'
+import { NOT_EXCLUDED } from '@/lib/finance'
 import { subMonths } from 'date-fns'
 
 export default async function EventsPage() {
@@ -27,6 +28,7 @@ export default async function EventsPage() {
         pending: false,
         amount: { gt: 0 },
         date: { gte: subMonths(new Date(), 12) },
+        ...NOT_EXCLUDED,
       },
       orderBy: { date: 'desc' },
       take: 200,
