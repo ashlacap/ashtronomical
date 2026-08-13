@@ -85,8 +85,10 @@ export default async function DashboardPage({
       }),
       db.bankAccount.findMany({ where: { userId: session.userId }, include: { plaidAccounts: true } }),
       db.savingsGoal.findMany({ where: { userId: session.userId }, orderBy: { createdAt: 'desc' }, take: 3 }),
+      // Not amount-filtered — a refund/credit last period should reduce what
+      // counts as "spent" for rollover, same as the current period's math.
       db.transaction.findMany({
-        where: { userId: session.userId, date: { gte: prevPeriodStart, lte: prevPeriodEnd }, pending: false, isTransfer: false, amount: { gt: 0 }, ...NOT_EXCLUDED },
+        where: { userId: session.userId, date: { gte: prevPeriodStart, lte: prevPeriodEnd }, pending: false, isTransfer: false, ...NOT_EXCLUDED },
         select: { categoryId: true, amount: true },
       }),
       db.savingsGoal.aggregate({ where: { userId: session.userId }, _sum: { currentAmount: true } }),
@@ -146,8 +148,8 @@ export default async function DashboardPage({
     : []
 
   const totalBudgeted = Array.from(effectiveBudgetByCat.values()).reduce((s, v) => s + v, 0)
-  const expenses = transactions.filter((t) => t.amount > 0)
-  const totalSpent = expenses.reduce((s, t) => s + t.amount, 0)
+  // Net of refunds/credits, so this reconciles with the per-category breakdown below.
+  const totalSpent = transactions.reduce((s, t) => s + t.amount, 0)
   const pendingTotal = pendingTxns.reduce((s, t) => s + t.amount, 0)
   const income = budget?.monthlyIncome ?? totalBudgeted
   const remaining = income - totalSpent
@@ -166,12 +168,14 @@ export default async function DashboardPage({
 
   // Uncategorized
   const uncategorizedTxns = transactions.filter((t) => !t.categoryId)
-  const uncategorizedSpend = uncategorizedTxns.filter((t) => t.amount > 0).reduce((s, t) => s + t.amount, 0)
+  const uncategorizedSpend = uncategorizedTxns.reduce((s, t) => s + t.amount, 0)
   const uncategorizedCount = uncategorizedTxns.length
 
   const categorySpend = categories.map((cat: Category) => {
     const effective = effectiveBudgetByCat.get(cat.id) ?? cat.budgetAmount
-    const spent = expenses.filter((t) => t.categoryId === cat.id).reduce((s, t) => s + t.amount, 0)
+    // Net of refunds/credits: a positive-amount purchase adds to spend, a
+    // negative-amount credit in the same category (e.g. a refund) reduces it.
+    const spent = transactions.filter((t) => t.categoryId === cat.id).reduce((s, t) => s + t.amount, 0)
     const pct = effective > 0 ? Math.min((spent / effective) * 100, 100) : 0
     const overBudget = effective > 0 && spent > effective
     const nearBudget = effective > 0 && !overBudget && pct >= alertThreshold

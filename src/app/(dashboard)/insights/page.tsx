@@ -24,8 +24,10 @@ export default async function InsightsPage() {
 
   const [categories, transactions, snapshots, ytdExpenses, ytdIncome] = await Promise.all([
     db.category.findMany({ where: { userId: session.userId }, orderBy: { budgetAmount: 'desc' } }),
+    // Not amount-filtered — a refund/credit in a category should reduce its
+    // spend across the trend chart, monthly summary, and anomaly insights.
     db.transaction.findMany({
-      where: { userId: session.userId, date: { gte: sixMonthsAgo }, pending: false, amount: { gt: 0 }, ...NOT_EXCLUDED },
+      where: { userId: session.userId, date: { gte: sixMonthsAgo }, pending: false, isTransfer: false, ...NOT_EXCLUDED },
       select: { categoryId: true, amount: true, date: true, name: true, merchantName: true, isKnownRecurring: true },
       orderBy: { date: 'asc' },
     }),
@@ -35,7 +37,7 @@ export default async function InsightsPage() {
     }),
     // YTD expenses by category
     db.transaction.findMany({
-      where: { userId: session.userId, date: { gte: yearStart }, pending: false, isTransfer: false, amount: { gt: 0 }, ...NOT_EXCLUDED },
+      where: { userId: session.userId, date: { gte: yearStart }, pending: false, isTransfer: false, ...NOT_EXCLUDED },
       select: { categoryId: true, amount: true },
     }),
     // YTD income (negative-amount transactions = money in)

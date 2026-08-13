@@ -23,8 +23,9 @@ export async function getNotifications(): Promise<AppNotification[]> {
 
   const [categories, transactions, goals, uncategorizedCount] = await Promise.all([
     db.category.findMany({ where: { userId: session.userId } }),
+    // Not amount-filtered — a refund/credit in a category should reduce its spend.
     db.transaction.findMany({
-      where: { userId: session.userId, date: { gte: monthStart, lte: monthEnd }, pending: false, isTransfer: false, amount: { gt: 0 }, ...NOT_EXCLUDED },
+      where: { userId: session.userId, date: { gte: monthStart, lte: monthEnd }, pending: false, isTransfer: false, ...NOT_EXCLUDED },
       select: { categoryId: true, amount: true },
     }),
     db.savingsGoal.findMany({ where: { userId: session.userId } }),

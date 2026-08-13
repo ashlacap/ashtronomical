@@ -86,9 +86,10 @@ export default async function TransactionsPage({
       where: { userId: session.userId },
       orderBy: { dayOfMonth: 'asc' },
     }),
-    // All spend in range, for the remaining-budget strip (independent of filters/pagination)
+    // All spend in range, for the remaining-budget strip (independent of filters/pagination).
+    // Not amount-filtered — a refund/credit in a category should reduce its spend, not be ignored.
     db.transaction.findMany({
-      where: { userId: session.userId, date: { gte: rangeStart, lte: rangeEnd }, pending: false, isTransfer: false, amount: { gt: 0 }, ...NOT_EXCLUDED },
+      where: { userId: session.userId, date: { gte: rangeStart, lte: rangeEnd }, pending: false, isTransfer: false, ...NOT_EXCLUDED },
       select: { categoryId: true, amount: true },
     }),
   ])

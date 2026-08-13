@@ -37,8 +37,10 @@ export async function GET(req: NextRequest) {
         where: { userId: user.id, date: { gte: weekAgo, lte: now }, pending: false, isTransfer: false, amount: { gt: 0 }, ...NOT_EXCLUDED },
         select: { amount: true },
       }),
+      // Not amount-filtered — a refund/credit in a category should reduce its spend
+      // for the over-budget check below.
       db.transaction.findMany({
-        where: { userId: user.id, date: { gte: monthStart, lte: monthEnd }, pending: false, isTransfer: false, amount: { gt: 0 }, ...NOT_EXCLUDED },
+        where: { userId: user.id, date: { gte: monthStart, lte: monthEnd }, pending: false, isTransfer: false, ...NOT_EXCLUDED },
         select: { categoryId: true, amount: true },
       }),
       db.category.findMany({ where: { userId: user.id } }),
