@@ -4,11 +4,14 @@ export type CategoryMatch = { categoryId: string; score: number }
 // not real spending or income — e.g. shuttling funds between two checking
 // accounts at the same bank. Deliberately narrow (Zelle/Venmo/etc. payments
 // to other people are excluded) to avoid mis-flagging real transactions.
+//
+// "funds transfer" / "account transfer" were removed: some banks (USAA
+// confirmed) reuse those exact words for reimbursement/refund credits too,
+// which are real income, not a self-transfer — matching on the word
+// "transfer" alone isn't reliable enough. Only kept patterns that name a
+// specific destination account type, which a refund description never does.
 const TRANSFER_PATTERNS = [
-  'funds transfer',
-  'account transfer',
   'internal transfer',
-  'online transfer',
   'transfer to savings',
   'transfer from savings',
   'transfer to checking',
