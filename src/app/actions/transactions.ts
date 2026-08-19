@@ -180,6 +180,127 @@ export async function restoreManualTransaction(data: NonNullable<DeletedTxn>): P
   revalidatePath('/dashboard')
 }
 
+export type DeletedFullTxn = {
+  name: string
+  merchantName: string | null
+  amount: number
+  date: string
+  categoryId: string | null
+  note: string | null
+  isTransfer: boolean
+  isManual: boolean
+  plaidTransactionId: string | null
+  plaidAccountId: string | null
+  pending: boolean
+} | null
+
+/**
+ * Deletes any transaction the user owns — manual or bank-synced. Synced
+ * transactions also get their plaidTransactionId recorded as dismissed, so a
+ * future sync (which otherwise re-creates anything Plaid still reports)
+ * doesn't bring it back. Returns enough to restore it via the Undo toast.
+ */
+export async function deleteTransaction(transactionId: string): Promise<DeletedFullTxn> {
+  const session = await requireAuth()
+  const txn = await db.transaction.findFirst({
+    where: { id: transactionId, userId: session.userId },
+  })
+  if (!txn) return null
+
+  await db.$transaction([
+    db.transaction.delete({ where: { id: txn.id } }),
+    ...(txn.plaidTransactionId
+      ? [
+          db.dismissedTransaction.upsert({
+            where: { userId_plaidTransactionId: { userId: session.userId, plaidTransactionId: txn.plaidTransactionId } },
+            update: {},
+            create: { userId: session.userId, plaidTransactionId: txn.plaidTransactionId },
+          }),
+        ]
+      : []),
+  ])
+
+  revalidatePath('/transactions')
+  revalidatePath('/dashboard')
+  return {
+    name: txn.name,
+    merchantName: txn.merchantName,
+    amount: txn.amount,
+    date: txn.date.toISOString(),
+    categoryId: txn.categoryId,
+    note: txn.note,
+    isTransfer: txn.isTransfer,
+    isManual: txn.isManual,
+    plaidTransactionId: txn.plaidTransactionId,
+    plaidAccountId: txn.plaidAccountId,
+    pending: txn.pending,
+  }
+}
+
+/** Bulk version of deleteTransaction, for the Transactions list's multi-select bar. */
+export async function bulkDeleteTransactions(transactionIds: string[]): Promise<number> {
+  const session = await requireAuth()
+  if (transactionIds.length === 0) return 0
+
+  const txns = await db.transaction.findMany({
+    where: { id: { in: transactionIds }, userId: session.userId },
+    select: { id: true, plaidTransactionId: true },
+  })
+  if (txns.length === 0) return 0
+
+  const plaidIds = txns.map((t) => t.plaidTransactionId).filter((id): id is string => !!id)
+
+  await db.$transaction([
+    db.transaction.deleteMany({ where: { id: { in: txns.map((t) => t.id) } } }),
+    ...(plaidIds.length > 0
+      ? [
+          db.dismissedTransaction.createMany({
+            data: plaidIds.map((plaidTransactionId) => ({ userId: session.userId, plaidTransactionId })),
+            skipDuplicates: true,
+          }),
+        ]
+      : []),
+  ])
+
+  revalidatePath('/transactions')
+  revalidatePath('/dashboard')
+  return txns.length
+}
+
+/** Undoes a single deleteTransaction — re-creates the row and clears the dismissal so future syncs work normally again. */
+export async function restoreTransaction(data: NonNullable<DeletedFullTxn>): Promise<void> {
+  const session = await requireAuth()
+
+  await db.$transaction([
+    db.transaction.create({
+      data: {
+        userId: session.userId,
+        name: data.name,
+        merchantName: data.merchantName,
+        amount: data.amount,
+        date: new Date(data.date),
+        categoryId: data.categoryId,
+        note: data.note,
+        isTransfer: data.isTransfer,
+        isManual: data.isManual,
+        pending: data.pending,
+        plaidTransactionId: data.plaidTransactionId,
+        plaidAccountId: data.plaidAccountId,
+      },
+    }),
+    ...(data.plaidTransactionId
+      ? [
+          db.dismissedTransaction.deleteMany({
+            where: { userId: session.userId, plaidTransactionId: data.plaidTransactionId },
+          }),
+        ]
+      : []),
+  ])
+
+  revalidatePath('/transactions')
+  revalidatePath('/dashboard')
+}
+
 const ImportRowSchema = z.object({
   date: z.string().min(1),
   name: z.string().min(1),

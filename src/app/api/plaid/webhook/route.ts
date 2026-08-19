@@ -35,6 +35,8 @@ export async function POST(req: NextRequest) {
   }
 
   const userCategories = await db.category.findMany({ where: { userId: bankAccount.userId } })
+  const dismissed = await db.dismissedTransaction.findMany({ where: { userId: bankAccount.userId }, select: { plaidTransactionId: true } })
+  const dismissedIds = new Set(dismissed.map((d) => d.plaidTransactionId))
 
   let cursor = bankAccount.cursor ?? undefined
   let hasMore = true
@@ -46,9 +48,11 @@ export async function POST(req: NextRequest) {
     })
 
     const data = res.data
+    // See src/app/actions/plaid.ts — skip anything the user explicitly deleted.
+    const newTxns = data.added.filter((t) => !dismissedIds.has(t.transaction_id))
 
     const categoryIds = await categorizeTransactions(
-      [...data.added, ...data.modified].map((t) => ({
+      [...newTxns, ...data.modified].map((t) => ({
         id: t.transaction_id,
         name: t.name,
         merchantName: t.merchant_name,
@@ -56,7 +60,7 @@ export async function POST(req: NextRequest) {
       userCategories,
     )
 
-    for (const txn of data.added) {
+    for (const txn of newTxns) {
       const categoryId = categoryIds.get(txn.transaction_id) ?? null
       await db.transaction.upsert({
         where: { plaidTransactionId: txn.transaction_id },

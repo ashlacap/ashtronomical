@@ -7,9 +7,11 @@ import {
   markAsTransfer,
   bulkUpdateCategory,
   createManualTransaction,
-  deleteManualTransaction,
-  restoreManualTransaction,
+  deleteTransaction,
+  restoreTransaction,
+  bulkDeleteTransactions,
   setTransactionNote,
+  type DeletedFullTxn,
 } from '@/app/actions/transactions'
 import { toast } from 'sonner'
 import {
@@ -197,6 +199,9 @@ function BulkBar({
 }) {
   const [, startTransition] = useTransition()
   const [catValue, setCatValue] = useState('')
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const router = useRouter()
 
   async function handleBulkCategory() {
     if (!catValue) return
@@ -207,30 +212,68 @@ function BulkBar({
     })
   }
 
+  async function handleBulkDelete() {
+    setDeleting(true)
+    const count = await bulkDeleteTransactions(selectedIds)
+    setDeleting(false)
+    setConfirmDelete(false)
+    onClear()
+    router.refresh()
+    toast.success(`Deleted ${count} transaction${count !== 1 ? 's' : ''}.`)
+  }
+
   return (
-    <div className="flex items-center gap-3 px-4 py-2.5 bg-primary/5 border border-primary/20 rounded-lg text-sm">
-      <span className="font-medium">{selectedIds.length} selected</span>
-      <div className="flex items-center gap-2 flex-1">
-        <Tag className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-        <select
-          className="flex h-8 rounded-md border border-input bg-background px-2 py-1 text-xs shadow-sm flex-1 max-w-48"
-          value={catValue}
-          onChange={(e) => setCatValue(e.target.value)}
+    <>
+      <div className="flex items-center gap-3 px-4 py-2.5 bg-primary/5 border border-primary/20 rounded-lg text-sm">
+        <span className="font-medium">{selectedIds.length} selected</span>
+        <div className="flex items-center gap-2 flex-1">
+          <Tag className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+          <select
+            className="flex h-8 rounded-md border border-input bg-background px-2 py-1 text-xs shadow-sm flex-1 max-w-48"
+            value={catValue}
+            onChange={(e) => setCatValue(e.target.value)}
+          >
+            <option value="">Set category…</option>
+            <option value="none">Remove category</option>
+            {categories.map((c) => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
+          <Button size="sm" className="h-8" onClick={handleBulkCategory} disabled={!catValue}>
+            Apply
+          </Button>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-8 text-xs gap-1.5 text-destructive hover:text-destructive"
+          onClick={() => setConfirmDelete(true)}
         >
-          <option value="">Set category…</option>
-          <option value="none">Remove category</option>
-          {categories.map((c) => (
-            <option key={c.id} value={c.id}>{c.name}</option>
-          ))}
-        </select>
-        <Button size="sm" className="h-8" onClick={handleBulkCategory} disabled={!catValue}>
-          Apply
+          <Trash2 className="h-3.5 w-3.5" />
+          Delete
+        </Button>
+        <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={onClear}>
+          Clear
         </Button>
       </div>
-      <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={onClear}>
-        Clear
-      </Button>
-    </div>
+
+      <Dialog open={confirmDelete} onOpenChange={setConfirmDelete}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete {selectedIds.length} transaction{selectedIds.length !== 1 ? 's' : ''}?</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            This can&apos;t be undone from here. Bank-synced transactions won&apos;t reappear on future syncs.
+          </p>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setConfirmDelete(false)}>Cancel</Button>
+            <Button variant="destructive" onClick={handleBulkDelete} disabled={deleting}>
+              {deleting ? 'Deleting…' : 'Delete'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   )
 }
 
@@ -272,6 +315,7 @@ export function TransactionList({
   const [, startTransition] = useTransition()
   const [addOpen, setAddOpen] = useState(false)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [confirmDeleteTxn, setConfirmDeleteTxn] = useState<Transaction | null>(null)
   const customActive = !!(rangeFrom && rangeTo)
   const [showCustom, setShowCustom] = useState(customActive)
   const [from, setFrom] = useState(rangeFrom ?? '')
@@ -328,21 +372,21 @@ export function TransactionList({
   }
 
   async function handleDelete(txnId: string) {
-    const deleted = await deleteManualTransaction(txnId)
+    const deleted: DeletedFullTxn = await deleteTransaction(txnId)
     router.refresh()
     if (deleted) {
       toast.success('Transaction deleted.', {
         action: {
           label: 'Undo',
           onClick: async () => {
-            await restoreManualTransaction(deleted)
+            await restoreTransaction(deleted)
             router.refresh()
             toast.success('Transaction restored.')
           },
         },
       })
     } else {
-      toast.success('Transaction deleted.')
+      toast.error('Could not delete that transaction.')
     }
   }
 
@@ -663,16 +707,14 @@ export function TransactionList({
 
                     <NoteButton txnId={txn.id} note={txn.note} />
 
-                    {txn.isManual && (
-                      <button
-                        onClick={() => handleDelete(txn.id)}
-                        className="p-1.5 rounded text-muted-foreground hover:text-destructive hover:bg-accent transition-colors"
-                        title="Delete manual transaction"
-                        aria-label="Delete manual transaction"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                    )}
+                    <button
+                      onClick={() => (txn.isManual ? handleDelete(txn.id) : setConfirmDeleteTxn(txn))}
+                      className="p-1.5 rounded text-muted-foreground hover:text-destructive hover:bg-accent transition-colors"
+                      title="Delete transaction"
+                      aria-label="Delete transaction"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
                   </div>
                 </div>
                 {i < transactions.length - 1 && <Separator />}
@@ -705,6 +747,30 @@ export function TransactionList({
         categories={categories}
         selectedMonth={selectedMonth}
       />
+
+      <Dialog open={!!confirmDeleteTxn} onOpenChange={(open) => !open && setConfirmDeleteTxn(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete this transaction?</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            {confirmDeleteTxn?.merchantName ?? confirmDeleteTxn?.name} — this can be undone right after deleting,
+            but won&apos;t reappear on future bank syncs either way.
+          </p>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setConfirmDeleteTxn(null)}>Cancel</Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                if (confirmDeleteTxn) handleDelete(confirmDeleteTxn.id)
+                setConfirmDeleteTxn(null)
+              }}
+            >
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

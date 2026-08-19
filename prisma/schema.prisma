@@ -38,6 +38,7 @@ model User {
   manualAssets       ManualAsset[]
   verificationTokens VerificationToken[]
   recurringRules     RecurringTransaction[]
+  dismissedTxns      DismissedTransaction[]
   householdId        String?
   household          Household?          @relation(fields: [householdId], references: [id], onDelete: SetNull)
 }
@@ -259,4 +260,18 @@ model Transaction {
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
   eventTransactions  EventTransaction[]
+}
+
+// A bank-synced transaction the user explicitly deleted (duplicate, already
+// reimbursed, etc.). Kept separately from Transaction since the row itself
+// is gone — sync checks this before re-creating a transaction with a
+// matching plaidTransactionId, so a deletion sticks across future syncs.
+model DismissedTransaction {
+  id                 String   @id @default(cuid())
+  userId             String
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plaidTransactionId String
+  dismissedAt        DateTime @default(now())
+
+  @@unique([userId, plaidTransactionId])
 }

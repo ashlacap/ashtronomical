@@ -143,6 +143,8 @@ async function syncTransactionsForAccount(
 ): Promise<number> {
   const bankAccount = await db.bankAccount.findUnique({ where: { id: bankAccountId } })
   const userCategories = await db.category.findMany({ where: { userId } })
+  const dismissed = await db.dismissedTransaction.findMany({ where: { userId }, select: { plaidTransactionId: true } })
+  const dismissedIds = new Set(dismissed.map((d) => d.plaidTransactionId))
 
   let cursor = bankAccount?.cursor ?? undefined
   let added = 0
@@ -155,9 +157,13 @@ async function syncTransactionsForAccount(
     })
 
     const data = res.data
+    // Skip anything the user explicitly deleted — Plaid keeps reporting it
+    // as "added" on future syncs since the underlying bank record hasn't
+    // changed, but we shouldn't silently bring it back.
+    const newTxns = data.added.filter((t) => !dismissedIds.has(t.transaction_id))
 
     const categoryIds = await categorizeTransactions(
-      [...data.added, ...data.modified].map((t) => ({
+      [...newTxns, ...data.modified].map((t) => ({
         id: t.transaction_id,
         name: t.name,
         merchantName: t.merchant_name,
@@ -165,7 +171,7 @@ async function syncTransactionsForAccount(
       userCategories,
     )
 
-    for (const txn of data.added) {
+    for (const txn of newTxns) {
       const categoryId = categoryIds.get(txn.transaction_id) ?? null
       await db.transaction.upsert({
         where: { plaidTransactionId: txn.transaction_id },
